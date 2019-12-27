@@ -4,7 +4,10 @@ import types
 import codecs
 import bitstring
 import itertools
-from . import llrpdef
+try:
+	from . import llrpdef
+except:
+	import llrpdef
 llrpdef.choiceDefinitions = { k + '_Parameter' : v + '_Parameter' for k, v in six.iteritems(llrpdef.choiceDefinitions) }
 
 #----------------------------------------------------------------------------------
@@ -72,7 +75,7 @@ class _FieldDef( object ):
 		elif ftype.startswith('array'):
 			length = s.read( 'uintbe:16' )
 			eftype = 'uintbe:{}'.format(ftype.split(':')[1])
-			arr = [s.read(eftype) for i in six.moves.range(length)]
+			arr = [s.read(eftype) for i in range(length)]
 			setattr( obj, attr, arr )
 		elif ftype == 'bitarray':
 			length = s.read( 'uintbe:16' )
@@ -99,7 +102,7 @@ class _FieldDef( object ):
 			elif ftype.startswith('bits'):
 				v = getattr( obj, attr )
 				length = int(ftype.split(':')[1])
-				for i in six.moves.range(length-1, -1, -1):
+				for i in range(length-1, -1, -1):
 					s.append( bitstring.pack('bool', bool(v & (1<<i))) )
 			elif ftype == 'string':
 				by = getattr(obj, attr, u'').encode()	# Encode utf-8.
@@ -906,13 +909,13 @@ if __name__ == '__main__':
 	import sys
 	
 	c = IMPINJ_ENABLE_EXTENSIONS_Message()
-	six.print_( c )
+	print( c )
 	
 	s = c.pack( bitstring.BitStream() )
-	six.print_( s )
+	print( s )
 	
 	m = UnpackMessage( s )
-	six.print_( m )
+	print( m )
 	
 	#-----------------------------
 
@@ -922,47 +925,47 @@ if __name__ == '__main__':
 	rospecEnableMessage = GetEnableRospecMesssage( 2 )
 	rospecMessage._validate()
 	
-	six.print_( rospecMessage )
+	print( rospecMessage )
 	rospecMessage._validate()
 	
-	six.print_( rospecEnableMessage )
+	print( rospecEnableMessage )
 	rospecEnableMessage._validate()
 	
 	s = rospecMessage.pack( bitstring.BitStream() )
-	six.print_( s )
+	print( s )
 	
 	m = UnpackMessage( s )
-	six.print_( m )
+	print( m )
 	
 	bb=s.tobytes()
 	t = bitstring.ConstBitStream( bytes=bb )
 	n = UnpackMessage( t )
-	six.print_( n )
+	print( n )
 	
 	s = rospecEnableMessage.pack( bitstring.BitStream() )
-	six.print_( s )
+	print( s )
 	
 	m = UnpackMessage( s )
-	six.print_( m )
+	print( m )
 	
 	bb=s.tobytes()
 	t = bitstring.ConstBitStream( bytes=bb )
 	n = UnpackMessage( t )
-	six.print_( n )
+	print( n )
 	
 	customMessage = IMPINJ_ENABLE_EXTENSIONS_Message( MessageID = 1 )
-	six.print_( customMessage )
+	print( customMessage )
 	
 	s = customMessage.pack( bitstring.BitStream() )
 	m = UnpackMessage( s )
-	six.print_( m )
+	print( m )
 	
 	customMessage = IMPINJ_ADD_ENCODE_DATA_Message( MessageID = 1, EncodeDataCacheID = 32 )
-	six.print_( customMessage )
+	print( customMessage )
 	
 	s = customMessage.pack( bitstring.BitStream() )
 	m = UnpackMessage( s )
-	six.print_( m )
+	print( m )
 	
 	message = READER_EVENT_NOTIFICATION_Message( MessageID = 1234, Parameters = [
 		UTCTimestamp_Parameter( Microseconds = 31415626 ),
@@ -972,7 +975,7 @@ if __name__ == '__main__':
 			),
 		]),
 	])	# ADD_ROSPEC_Message
-	six.print_( message.__repr__() )
-	six.print_( message.getFirstParameterByClass(ConnectionAttemptEvent_Parameter) )
+	print( message.__repr__() )
+	print( message.getFirstParameterByClass(ConnectionAttemptEvent_Parameter) )
 	
-	six.print_( ConnectionAttemptStatusType.getName(2), ConnectionAttemptStatusType.Success )
+	print( ConnectionAttemptStatusType.getName(2), ConnectionAttemptStatusType.Success )
