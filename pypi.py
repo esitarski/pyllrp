@@ -3,7 +3,6 @@
 import os
 import io
 import sys
-import six
 import stat
 import glob
 import shutil
@@ -32,13 +31,13 @@ def removeTabs( buf, tabStop = 4 ):
 	return '\n'.join( lines ) + '\n'
 
 def writeToFile( s, fname ):
-	six.print_( 'creating', fname, '...' )
+	print( 'creating', fname, '...' )
 	with io.open(os.path.join(pypiDir,fname), 'w') as f:
 		f.write( s )
 
 #------------------------------------------------------
 # Create a release area for pypi
-six.print_( 'Clearing previous contents...' )
+print( 'Clearing previous contents...' )
 try:
 	subprocess.call( ['rm', '-rf', pypiDir] )
 except:
@@ -113,12 +112,12 @@ writeToFile( manifest, 'MANIFEST.in' )
 srcDir = os.path.join( pypiDir, 'pyllrp' )
 os.mkdir( srcDir )
 
-six.print_( 'Copy the src files and add the copyright notice.' )
+print( 'Copy the src files and add the copyright notice.' )
 license = license.replace( '\n', '\n# ' )
 for fname in glob.glob( '*.*' ):
 	if not (fname.endswith( '.py' ) or fname.endswith('.pyw')) or fname == 'pypi.py':
 		continue
-	six.print_( '   ', fname, '...' )
+	print( '   ', fname, '...' )
 	with io.open(fname, 'r') as f:
 		contents = f.read()
 	if contents.startswith('import'):
@@ -143,7 +142,7 @@ for fname in glob.glob( '*.*' ):
 		f.write( contents )
 
 
-six.print_( 'Creating setup.py...' )
+print( 'Creating setup.py...' )
 setup = {
 	'name':			'pyllrp',
 	'version':		version,
@@ -169,12 +168,12 @@ setup = {
 with io.open(os.path.join(pypiDir,'setup.py'), 'w') as f:
 	f.write( 'from distutils.core import setup\n' )
 	f.write( 'setup(\n' )
-	for key, value in six.iteritems(setup):
+	for key, value in setup.items():
 		f.write( '    {}={},\n'.format(key, repr(value)) )
 	f.write( "    long_description=open('README.txt').read(),\n" )
 	f.write( ')\n' )
 
-six.print_( 'Creating install package...' )
+print( 'Creating install package...' )
 os.chdir( pypiDir )
 subprocess.call( ['python', 'setup.py', 'sdist', '--formats=gztar,zip'] )
 
@@ -182,4 +181,4 @@ os.chdir( 'dist' )
 shutil.move( 'pyllrp-{}.zip'.format(version), 'pip-install-pyllrp-{}.zip'.format(version) )
 shutil.move( 'pyllrp-{}.tar.gz'.format(version), 'pip-install-pyllrp-{}.tar.gz'.format(version) )
 	
-six.print_( 'Done.' )
+print( 'Done.' )
