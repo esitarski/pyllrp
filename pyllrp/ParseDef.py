@@ -113,7 +113,7 @@ enums, parameters, messages = [], [], []
 vendors = {}
 choiceDefinitions = {}
 
-llrpDefXml = 'llrp-1x0-def.xml'
+llrpDefXml = '../xml/llrp-1x0-def.xml'
 dom = parse( llrpDefXml )
 
 vendors.update( dict(getVendorCode(v) for v in dom.getElementsByTagName('vendorDefinition')) )
@@ -127,7 +127,7 @@ del choiceDefinitions['Custom']
 dom.unlink()
 dom = None
 
-llrpCustomDefXml = 'Impinjdef-1.18-private.xml'
+llrpCustomDefXml = '../xml/Impinjdef-1.18-private.xml'
 dom = parse( llrpCustomDefXml )
 
 vendors.update( dict(getVendorCode(v) for v in dom.getElementsByTagName('vendorDefinition')) )

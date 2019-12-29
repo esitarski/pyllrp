@@ -87,7 +87,7 @@ class _FieldDef( object ):
 			s.read( 'int:{}'.format(skip) )
 		elif ftype == 'bytesToEnd':
 			assert bytesRemaining is not None, 'bytesToEnd type requires bytesRemaining to be set'
-			by = s.read( 'bytes:{}'.format(bytesRemaining) )			# Read as bytes.
+			by = s.read( 'bytes:{}'.format(bytesRemaining) )		# Read as bytes.
 			setattr( obj, attr, bitstring.BitStream(bytes=by) )		# Set attr to a bitstream.
 		else:
 			assert False
@@ -122,7 +122,7 @@ class _FieldDef( object ):
 					v = u'{:x}'.format(by)	# Convert to hex.
 					if len(v) & 1:			# Ensure number has an even number of hex chars.
 						v = u'0' + v
-					by = codecs.encode( v, 'hex_codec' )	# Encode to byes as hex.
+					by = codecs.encode( v, 'hex_codec' )	# Encode to bytes as hex.
 				s.append( bitstring.Bits(uintbe=len(by)*8, length=16) )
 				s.append( bitstring.Bits(bytes=by) )
 			elif ftype.startswith('skip'):
