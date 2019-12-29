@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 import os
-import six
 import sys
 import time
 import socket
@@ -59,14 +58,14 @@ def TinyExampleTest( conn ):
 	assert response.success()
 
 	# Start thread to listen to the reader for a while.
-	six.print_( 'Listen to the connection for a few seconds...\n' )
+	print( 'Listen to the connection for a few seconds...\n' )
 	conn.startListener()
 	time.sleep( 2 )			# Wait for some reads (we could be doing something else here too).
 	conn.stopListener()
 
-	six.print_( 'Shutting down the connection...\n' )
+	print( 'Shutting down the connection...\n' )
 	response = conn.disconnect()
-	six.print_( response )
+	print( response )
 
 if __name__ == '__main__':
 	'''Read a tag inventory from the reader and shutdown.'''
@@ -75,15 +74,15 @@ if __name__ == '__main__':
 	ti.Connect()
 	tagInventory = ti.GetTagInventory()
 	for t in tagInventory:
-		six.print_( t )
+		print( t )
 	ti.Disconnect()
 	
 	''' Test that we can connect at different power levels. '''
 	for p in [1,5,10,20,30,40,50,60,70,80]:
-		six.print_( 'power={}'.format(p) )
+		print( 'power={}'.format(p) )
 		ti = TagInventory( host, transmitPower = p )
 		ti.Connect()
 		tagInventory = ti.GetTagInventory()
 		for t in tagInventory:
-			six.print_( t )
+			print( t )
 		ti.Disconnect()
