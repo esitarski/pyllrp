@@ -396,7 +396,7 @@ def _getAllParametersByClass( self, parameterClass ):
 		if isinstance( p, parameterClass ):
 			yield p
 		else:
-			p.getAllParametersByClass( parameterClass )
+			yield from p.getAllParametersByClass( parameterClass )
 
 def _getFirstParameterByClass( self, parameterClass ):
 	for p in self.Parameters:
