@@ -15,7 +15,7 @@ def GetDefaultHost():
 		s.close()
 	return IP
 	
-def findImpinjHost( impinjPort=5084 ):
+def findImpinjHost( impinjPort=5084, callback=None ):
 	''' Search ip addresses adjacent to the computer in an attempt to find the reader. '''
 	ip = [int(i) for i in GetDefaultHost().split('.')]
 	j = 0
@@ -34,11 +34,15 @@ def findImpinjHost( impinjPort=5084 ):
 		try:
 			readerSocket.connect( (impinjHost, impinjPort) )
 		except Exception as e:
+			if callback:
+				callback( impinjHost, False )
 			continue
 		
 		try:
 			response = UnpackMessageFromSocket( readerSocket )
 		except Exception as e:
+			if callback:
+				callback( impinjHost, False )
 			readerSocket.close()
 			continue
 			
@@ -47,12 +51,17 @@ def findImpinjHost( impinjPort=5084 ):
 		# Check if the connection succeeded.
 		connectionAttemptEvent = response.getFirstParameterByClass(ConnectionAttemptEvent_Parameter)
 		if connectionAttemptEvent and connectionAttemptEvent.Status == ConnectionAttemptStatusType.Success:
+			if callback:
+				callback( impinjHost, True )
 			return impinjHost
+		else:
+			if callback:
+				callback( impinjHost, False )
 			
 	return None
 
-def AutoDetect( impinjPort=5084 ):
-	return findImpinjHost(impinjPort), GetDefaultHost()
+def AutoDetect( impinjPort=5084, callback=None ):
+	return findImpinjHost(impinjPort, callback), GetDefaultHost()
 		
 if __name__ == '__main__':
 	print( AutoDetect() )
