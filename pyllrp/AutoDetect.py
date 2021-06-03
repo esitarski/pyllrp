@@ -4,26 +4,16 @@ import subprocess
 from .pyllrp import UnpackMessageFromSocket, ConnectionAttemptEvent_Parameter, ConnectionAttemptStatusType
 
 def GetDefaultHost():
-	DEFAULT_HOST = socket.gethostbyname(socket.gethostname())
-	if DEFAULT_HOST in ('127.0.0.1', '127.0.1.1'):
-		reSplit = re.compile('[: \t]+')
-		try:
-			co = subprocess.Popen(['ifconfig'], stdout=subprocess.PIPE)
-			ifconfig = co.stdout.read().decode()
-			for line in ifconfig.split('\n'):
-				line = line.strip()
-				try:
-					if line.startswith('inet addr:'):
-						fields = reSplit.split( line )
-						addr = fields[2]
-						if addr != '127.0.0.1':
-							DEFAULT_HOST = addr
-							break
-				except Exception as e:
-					pass
-		except Exception as e:
-			pass
-	return DEFAULT_HOST
+	s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	try:
+		# doesn't have to be reachable
+		s.connect(('10.255.255.255', 1))
+		IP = s.getsockname()[0]
+	except Exception:
+		IP = '127.0.0.1'
+	finally:
+		s.close()
+	return IP
 	
 def findImpinjHost( impinjPort=5084 ):
 	''' Search ip addresses adjacent to the computer in an attempt to find the reader. '''

@@ -30,6 +30,11 @@ For example, pyllrp is strict about bool and ints: passing 1/0 for True/False do
 The names of all fields must be specified, with the exception of Parameters which have only one field.  In this case, the single parameter is taken
 to be the value.
 
+How to use it:
+
+The only files you need are pyllrp.py and llrpdef.py.  TinyExample.py shows how to formulate LLRP specs, messages and parameters.
+
+
 How it works:
 
 ParseDef.py reads the XML spec files and generates the llrpdef.py file.  During this process, it translates the LLRP data types into bitstream representation and processes the XML into Python-friendly structures.  ParseDef must be run every time the XML files change.
