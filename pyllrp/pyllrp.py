@@ -264,7 +264,7 @@ def _getRepr( self, indent = 0 ):
 				v = getattr(self, f.Name)
 				iw( '{}={}, # {}\n'.format(f.Name, repr(v), _parameterClassFromTypeCode[v].Name ) )
 			else:
-				iw('  {}={},\n'.format(f.Name, repr(getattr(self, f.Name)) ) )
+				iw('  {}={},\n'.format(f.Name, repr(getattr(self, f.Name, 'unknown')) ) )
 		if self.Parameters:
 			iw( '  Parameters=[\n' )
 			for p in self.Parameters:

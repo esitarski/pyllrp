@@ -30,7 +30,8 @@ def CustomExtensionTest( reader ):
 		if not response.success():
 			print( 'GET_READER_CONFIG_Message fails.' )
 			return
-						
+					
+		print( response )	
 		p = response.getFirstParameterByClass( ImpinjReaderTemperature_Parameter )
 		if p:
 			print( 'Reader Temperature =', p.Temperature )
