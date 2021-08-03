@@ -90,7 +90,7 @@ class _FieldDef( object ):
 			by = s.read( 'bytes:{}'.format(bytesRemaining) )		# Read as bytes.
 			setattr( obj, attr, bitstring.BitStream(bytes=by) )		# Set attr to a bitstream.
 		else:
-			assert False
+			assert False, 'Unknown FieldDef type: "{}"'.format( ftype )
 
 	def write( self, s, obj ):
 		''' Write the field from the obj to the bitstring. '''
@@ -158,7 +158,7 @@ class _FieldDef( object ):
 			assert ftype.startswith('skip'), 'Unknown field type: "{}"'.format(ftype)
 			
 	def __repr__( self ):
-		return u'FieldDef( "{}", "{}" )'.format( self.Name, self.TypeCode )
+		return 'FieldDef( "{}", "{}" )'.format( self.Name, self.TypeCode )
 
 #----------------------------------------------------------------------------------
 
@@ -305,35 +305,48 @@ def _validate( self, path = None ):
 		ftype = f.TypeCode
 		if ftype.startswith('skip'):	# Pass over "skip" fields first as there is no field.
 			continue
-		name = f.Name
 			
+		name = f.Name
 		assert hasattr(self, name), '{}: Missing attribute: {}'.format('.'.join(path), name)
+		value = getattr( self, name )
 		
 		if f.Enum:
-			assert f.Enum.getName(getattr(self, name)), '{}: field "{}" must have value in enumeration: {}'.format('.'.join(path), name, f.Enum)
+			assert f.Enum.getName(value), '{}: field "{}" must have value in enumeration: {}'.format('.'.join(path), name, f.Enum)
 		
 		if ftype.startswith('uintbe') or ftype.startswith('intbe') or ftype.startswith('bits'):
-			assert isinstance( getattr(self, name), six.integer_types ), '{}: field "{}" must be "int" type, not "{}"'.format(
-					'.'.join(path), name, getattr(self, name).__class__.__name__)
+			# Check type.
+			assert isinstance( value, six.integer_types ), '{}: field "{}" must be "int" type, not "{}"'.format(
+					'.'.join(path), name, value.__class__.__name__)
+			# Check range.
+			if ftype.startswith('uintbe'):
+				value_max = (1<<int(ftype.split(':')[1])) - 1
+				assert value <= value_max, '{}: "uint" field "{}={}" must be in range [0,{}]'.format(
+						'.'.join(path), name, value, value_max )
+			elif ftype.startswith('intbe'):
+				bit_count = int(ftype.split(':')[1])
+				value_min = -(1<<(bit_count-1))
+				value_max = -value_min + 1
+				assert value_min <= value <= value_max, '{}: "int" field "{}={}" must be in range [{},{}]'.format(
+						'.'.join(path), name, value, value_min, value_max )
 		elif ftype == 'bool':
-			assert isinstance( getattr(self, name), bool ), '{}: field "{}" must be "bool" type, not "{}"'.format(
-					'.'.join(path), name, getattr(self, name).__class__.__name__)
+			assert isinstance( value, bool ), '{}: field "{}" must be "bool" type, not "{}"'.format(
+					'.'.join(path), name, value.__class__.__name__)
 		elif ftype.startswith('array'):
-			arr = getattr(self, name)
+			arr = value
 			assert isinstance( arr, list ), '{}: field "{}" must be "list" type, not "{}"'.format(
-					'.'.join(path), name, getattr(self, name).__class__.__name__)
+					'.'.join(path), name, value.__class__.__name__)
 			for i, e in enumerate(arr):
 				assert isinstance( e, six.integer_types ), '{}: field "{}" must contain all "ints" (not "{}" at position {})'.format(
 						'.'.join(path), name, e.__class__.__name__, i)
 		elif ftype == 'string':
-			assert isinstance( getattr(self, name), six.string_types ), '{}: field "{}" must be "string" type, not "{}"'.format(
-					'.'.join(path), name, getattr(self, name).__class__.__name__)
+			assert isinstance( value, six.string_types ), '{}: field "{}" must be "str" type, not "{}"'.format(
+					'.'.join(path), name, value.__class__.__name__)
 		elif ftype == 'bitarray':
-			assert isinstance( getattr(self, name), bytes ), '{}: field "{}" must be "bytes" type, not "{}"'.format(
-					'.'.join(path), name, getattr(self, name).__class__.__name__)
+			assert isinstance( value, bytes ), '{}: field "{}" must be "bytes" type, not "{}"'.format(
+					'.'.join(path), name, value.__class__.__name__)
 		elif ftype == 'bytesToEnd':
-			assert isinstance( getattr(self, name), bitstring.BitStream ), '{}: bytesToEnd field "{}" must be "bitstring.BitStream" type, not "{}"'.format(
-					'.'.join(path), name, getattr(self, name).__class__.__name__)
+			assert isinstance( value, bitstring.BitStream ), '{}: bytesToEnd field "{}" must be "bitstring.BitStream" type, not "{}"'.format(
+					'.'.join(path), name, value.__class__.__name__)
 		else:
 			assert False, '{}: Unknown field ftype: "{}"'.format('.'.join(path), ftype)
 			
@@ -452,7 +465,7 @@ class _MessagePackUnpack( object ):
 	def __init__( self, TypeCode, Name, FieldDefs, ParameterDefs ):
 		self.TypeCode = TypeCode
 		self.Name = Name
-		self.FieldDefs = FieldDefs
+		self.FieldDefs = FieldDefs if Name != 'Custom' else FieldDefs[:2]
 		self.ParameterDefs = ParameterDefs
 		if ParameterDefs:
 			self.ParameterSequence = { pp['parameter']+'_Parameter':i for i, pp in enumerate(ParameterDefs) }
@@ -462,9 +475,10 @@ class _MessagePackUnpack( object ):
 
 	def isCustom( self ):
 		try:
-			return	self.TypeCode == CustomTypeCode and \
-					self.FieldDefs[0].Name == 'VendorIdentifier' and self.FieldDefs[0].Default is not None and \
+			return (self.TypeCode == CustomTypeCode and
+					self.FieldDefs[0].Name == 'VendorIdentifier' and self.FieldDefs[0].Default is not None and
 					self.FieldDefs[1].Name == 'MessageSubtype'   and self.FieldDefs[1].Default is not None
+			)
 		except (IndexError, KeyError):
 			return False
 		
@@ -492,13 +506,18 @@ class _MessagePackUnpack( object ):
 			
 		if m.TypeCode == CustomTypeCode:
 			# Rebind to the specific custom message based on vendor and subtype.
-			mCustom = _messageClassFromTypeCode[(self.TypeCode, m.VendorIdentifier, m.MessageSubtype)]( MessageID = m._MessageID )
-			mCustom._Length = m._Length
-			m = mCustom
-			
-			# Read the rest of the fields.
-			for f in m.FieldDefs[2:]:
-				f.read( s, m, m._Length - ((s.pos - beginPos) >> 3) )
+			mCustomClass = _messageClassFromTypeCode.get( (self.TypeCode, m.VendorIdentifier, m.MessageSubtype), None )
+			if mCustomClass:
+				mCustom = mCustomClass( MessageID = m._MessageID )
+				mCustom._Length = m._Length
+				m = mCustom
+				
+				# Read the rest of the fields.
+				for f in m.FieldDefs[2:]:
+					f.read( s, m, m._Length - ((s.pos - beginPos) >> 3) )
+			else:
+				# Unrecognized custom message.  Skip the remaining bytes and return a plain CustomMessage object.
+				s.read( 'bytes:{}'.format(m._Length - ((s.pos - beginPos) >> 3) ) )
 			
 		while ((s.pos - beginPos) >> 3) < m._Length:
 			m.Parameters.append( UnpackParameter(s) )
@@ -544,10 +563,15 @@ class _ParameterPackUnpack( object ):
 		self.Code = self.getCode()
 
 	def isCustom( self ):
+		if self.Name == 'Custom':	# Ironically, the Custom field is not a custom field.
+			return False
+		
+		# A true custom field has the CustomTypeCode with the VendorIdentifier and Subtype defined.
 		try:
-			return	self.TypeCode == CustomTypeCode and \
-					self.FieldDefs[0].Name == 'VendorIdentifier' and self.FieldDefs[0].Default is not None and \
+			return (self.TypeCode == CustomTypeCode and
+					self.FieldDefs[0].Name == 'VendorIdentifier' and self.FieldDefs[0].Default is not None and
 					self.FieldDefs[1].Name == 'ParameterSubtype' and self.FieldDefs[1].Default is not None
+			)
 		except (IndexError, KeyError):
 			return False
 		
@@ -578,18 +602,25 @@ class _ParameterPackUnpack( object ):
 		assert TypeCode == self.TypeCode
 		
 		# Read the fields of this parameter.
+		# For custom parameters, this will only read VendorIdentifier and ParameterSubtype.
+		# For non-custom parameters, this will read all the fields.
 		for f in self.FieldDefs:
 			f.read( s, p )
 			
 		if TypeCode == CustomTypeCode:
-			# Get the new fields definition based on the VendorIdentifier and ParameterSubtype.
-			pCustom = _parameterClassFromTypeCode[ (TypeCode, p.VendorIdentifier, p.ParameterSubtype) ]()
-			pCustom._Length = p._Length
-			
-			# Read the rest of the defined fields for the custom type.
-			p = pCustom
-			for f in p.FieldDefs[2:]:
-				f.read( s, p )
+			# Switch to the custom parameter fields based on the VendorIdentifier and ParameterSubtype read by the Custom type.
+			pCustomClass = _parameterClassFromTypeCode.get( (CustomTypeCode, p.VendorIdentifier, p.ParameterSubtype), None )
+			if pCustomClass:
+				pCustom = pCustomClass()
+				pCustom._Length = p._Length
+				
+				# Read the remaining fields for the custom type, skipping VendorIdentifier and ParameterSubtype.
+				p = pCustom
+				for f in p.FieldDefs[2:]:
+					f.read( s, p )
+			else:
+				# Unrecognized custom parameter.  Skip the remaining bytes and return a plain CustomParameter object.
+				s.read( 'bytes:{}'.format(p._Length - ((s.pos - beginPos) >> 3) ) )
 			
 		if p.Encoding == self.TLV:
 			while ((s.pos - beginPos) >> 3) < p._Length:
@@ -669,10 +700,14 @@ for p in llrpdef.parameters:
 		pup = _DefTV( TypeCode, Name, _fixFieldDefs(p['fields']) )
 	else:
 		pup = _DefTLV( TypeCode, Name, _fixFieldDefs(p.get('fields',[])), p.get('parameters', None) )
+		
 	parameterClassName = pup.Name + '_Parameter'
 	_ParameterPackUnpackLookup[TypeCode] = pup
-	_parameterClassFromTypeCode[pup.Code] = _parameterClassFromName[parameterClassName] = _MakeClass( 'Parameter', pup.Name, TypeCode, pup )
-
+	cls = _MakeClass( 'Parameter', pup.Name, TypeCode, pup )
+	
+	_parameterClassFromName[parameterClassName] = cls	
+	_parameterClassFromTypeCode[pup.getCode()] = cls
+	
 globals().update( _parameterClassFromName )	# Add Parameter classes to global namespace.
 
 #-----------------------------------------------------------------------------
@@ -795,20 +830,20 @@ if six.PY2:
 			return '1' if value else '0'
 		if isinstance(value, six.integer_types):
 			return '{:X}'.format(value)
-		return ''.join( "{:02X}".format(ord(x)) for x in value ).lstrip('0')
+		return ''.join( '{:02X}'.format(ord(x)) for x in value ).lstrip('0')
 
 	def HexFormatToInt( value ):
-		return int(''.join( "{:02X}".format(ord(x)) for x in value ), 16)
+		return int(''.join( '{:02X}'.format(ord(x)) for x in value ), 16)
 else:
 	def HexFormatToStr( value ):
 		if isinstance(value, bool):
 			return '1' if value else '0'
-		if isinstance(value, six.integer_types):
+		if isinstance(value, int):
 			return '{:X}'.format(value)
-		return ''.join( "{:02X}".format(x) for x in value ).lstrip('0')
+		return ''.join( '{:02X}'.format(x) for x in value ).lstrip('0')
 
 	def HexFormatToInt( value ):
-		return int(''.join( "{:02X}".format(x) for x in value ), 16)
+		return int(''.join( '{:02X}'.format(x) for x in value ), 16)
 
 def GetBasicAddRospecMessage( MessageID = None, ROSpecID = 123, inventoryParameterSpecID = 1234, antennas = None ):
 	#-----------------------------------------------------------------------------
@@ -897,9 +932,6 @@ def _getTagData( self ):
 
 # Add a 'getTagData' convenience method to the RO_ACCESS_REPORT message.
 RO_ACCESS_REPORT_Message.getTagData = _getTagData
-'''
-RO_ACCESS_REPORT_Message.getTagData = types.MethodType( _getTagData, None, RO_ACCESS_REPORT_Message )
-'''
 
 # Remove the bytesToEnd field from the CUSTOM_MESSAGE and Custom parameter.
 CUSTOM_MESSAGE_Message.FieldDefs = CUSTOM_MESSAGE_Message.FieldDefs[:-1]
@@ -979,3 +1011,17 @@ if __name__ == '__main__':
 	print( message.getFirstParameterByClass(ConnectionAttemptEvent_Parameter) )
 	
 	print( ConnectionAttemptStatusType.getName(2), ConnectionAttemptStatusType.Success )
+	
+	# Custom Parameters Test
+	customMessage = GET_READER_CONFIG_RESPONSE_Message( MessageID = 1, Parameters = [
+			LLRPStatus_Parameter( StatusCode=StatusCode.M_Success ),
+			ImpinjReaderTemperature_Parameter( Temperature=40 ),
+		],
+	)
+	print( '*'*40 )
+	print( customMessage )
+	
+	s = customMessage.pack( bitstring.BitStream() )
+	m = UnpackMessage( s )
+	print( m )
+	

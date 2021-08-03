@@ -173,3 +173,9 @@ class LLRPConnector( object ):
 	
 	def isListening( self ):
 		return self.thread and self.thread.is_alive()
+		
+	def __enter__( self ):
+		return self
+		
+	def __exit__(self, type, value, traceback):
+		self.disconnect()

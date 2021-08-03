@@ -6,15 +6,44 @@ import socket
 import datetime
 
 from .pyllrp import *
+from .AutoDetect import AutoDetect
+from .LLRPConnector import LLRPConnector
 from .TagInventory import TagInventory
 
 #-----------------------------------------------------------------------------------------
 
+def CustomExtensionTest( reader ):
+	'''
+		Test Impinj custom message.
+	'''
+	with LLRPConnector() as conn:
+		conn.connect( reader )
+		
+		message = IMPINJ_ENABLE_EXTENSIONS_Message( MessageID = 0xeded )
+		response = conn.transact( message )
+		if not response.success():
+			print( 'This reader does not support Impinj extensions.' )
+			return
+			
+		message = GET_READER_CONFIG_Message( MessageID = 0xededed, RequestedData = GetReaderConfigRequestedData.All )
+		response = conn.transact( message )
+		if not response.success():
+			print( 'GET_READER_CONFIG_Message fails.' )
+			return
+						
+		p = response.getFirstParameterByClass( ImpinjReaderTemperature_Parameter )
+		if p:
+			print( 'Reader Temperature =', p.Temperature )
+		else:
+			print( 'This reader supports Impinj extensions but did not return a Reader Temperature.' )
+	
 def TinyExampleTest( conn ):
+	'''
+		Create an rospec that reports every read as soon as it happens.
+	'''
 	rospecID = 123					# Arbitrary rospecID.
 	inventoryParameterSpecID = 1234	# Arbitrary inventory parameter spec id.
 
-	# Create an rospec that reports every read as soon as it happens.
 	response = conn.transact(
 		ADD_ROSPEC_Message( Parameters = [
 			ROSpec_Parameter(
@@ -68,19 +97,30 @@ def TinyExampleTest( conn ):
 	print( response )
 
 if __name__ == '__main__':
-	'''Read a tag inventory from the reader and shutdown.'''
-	host = '192.168.0.101'
-	ti = TagInventory( host )
+	print( 'AutoDetecting reader...' )
+	reader, computer_ip = AutoDetect()
+	#reader = '192.168.0.100'
+	if not reader:
+		print( 'No reader detected.' )
+		sys.exit( -1 )
+	print( 'found reader at', reader )
+	
+	# Test custom extensions.
+	CustomExtensionTest( reader )
+	
+	# Read a tag inventory from a reader and shutdown.
+	ti = TagInventory( reader )
 	ti.Connect()
+	
 	tagInventory = ti.GetTagInventory()
 	for t in tagInventory:
 		print( t )
 	ti.Disconnect()
 	
-	''' Test that we can connect at different power levels. '''
+	# Check that we can connect at different power levels.
 	for p in [1,5,10,20,30,40,50,60,70,80]:
-		print( 'power={}'.format(p) )
-		ti = TagInventory( host, transmitPower = p )
+		print( 'Connecting at transmitPower={}'.format(p) )
+		ti = TagInventory( reader, transmitPower = p )
 		ti.Connect()
 		tagInventory = ti.GetTagInventory()
 		for t in tagInventory:

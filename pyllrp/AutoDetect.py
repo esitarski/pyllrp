@@ -33,7 +33,6 @@ def is_impinj_reader( ip, port ):
 	except Exception as e:
 		return False
 	
-
 def connection_tester(job_q, results_q, port):
 	while results_q.empty():	# Quit as soon as we detect a reader.
 		ip = job_q.get()
@@ -46,7 +45,6 @@ def connection_tester(job_q, results_q, port):
 		except Exception as e:
 			pass
 
-
 def get_my_ip():
 	s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 	try:
@@ -58,7 +56,6 @@ def get_my_ip():
 	finally:
 		s.close()
 	return IP
-
 
 def check_network(pool_size=255, port=5084):
 	""" Check the network for readers. """
