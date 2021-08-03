@@ -283,7 +283,7 @@ def _getRepr( self, indent = 0 ):
 			if f.Enum:
 				w( '{}={}.{} ),\n'.format(f.Name, f.Enum._name, f.Enum.getName(getattr(self, f.Name))) )
 			else:
-				w( '{}={} ),\n'.format(f.Name, repr(getattr(self, f.Name)) ) )
+				w( '{}={} ),\n'.format(f.Name, repr(getattr(self, f.Name, 'unknown')) ) )
 		
 	return s.getvalue()
 	
