@@ -325,7 +325,7 @@ def _validate( self, path = None ):
 			elif ftype.startswith('intbe'):
 				bit_count = int(ftype.split(':')[1])
 				value_min = -(1<<(bit_count-1))
-				value_max = -value_min + 1
+				value_max = -value_min - 1
 				assert value_min <= value <= value_max, '{}: "int" field "{}={}" must be in range [{},{}]'.format(
 						'.'.join(path), name, value, value_min, value_max )
 		elif ftype == 'bool':
@@ -933,7 +933,7 @@ def _getTagData( self ):
 # Add a 'getTagData' convenience method to the RO_ACCESS_REPORT message.
 RO_ACCESS_REPORT_Message.getTagData = _getTagData
 
-# Remove the bytesToEnd field from the CUSTOM_MESSAGE and Custom parameter.
+# Remove the bytesToEnd Data field from the CUSTOM_MESSAGE and Custom parameter.
 CUSTOM_MESSAGE_Message.FieldDefs = CUSTOM_MESSAGE_Message.FieldDefs[:-1]
 Custom_Parameter.FieldDefs = Custom_Parameter.FieldDefs[:-1]
 
