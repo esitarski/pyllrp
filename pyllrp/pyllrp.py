@@ -937,6 +937,12 @@ RO_ACCESS_REPORT_Message.getTagData = _getTagData
 CUSTOM_MESSAGE_Message.FieldDefs = CUSTOM_MESSAGE_Message.FieldDefs[:-1]
 Custom_Parameter.FieldDefs = Custom_Parameter.FieldDefs[:-1]
 
+def getVendorName( vendorCode ):
+	for name, code in llrpdef.vendors.items():
+		if vendorCode == code:
+			return name
+	return ''
+
 if __name__ == '__main__':
 	import sys
 	
