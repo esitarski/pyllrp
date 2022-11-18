@@ -107,7 +107,9 @@ class TagWriter( TagInventory.TagInventory ):
 		self._execute()
 		
 		response = self.connector.transact( DISABLE_ACCESSSPEC_Message(AccessSpecID = self.accessSpecID) )
-		assert response.success(), 'Disable AccessSpec Fails\n{}'.format(response)
+		# What to do if the Enable succeeds but the Disable fails?
+		# This should be OK as we always delete and recreate the message between calls.
+		#assert response.success(), 'Disable AccessSpec Fails\n{}'.format(response)
 		
 	def _epilogTW( self ):
 		response = self.connector.transact( DELETE_ACCESSSPEC_Message(AccessSpecID = self.accessSpecID) )

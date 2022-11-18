@@ -815,7 +815,7 @@ def GetResponseClass( message ):
 def WaitForMessage( MessageID, sock, nonMatchingMessageHandler = None ):
 	''' Wait for a message matching the MessageID. '''
 	''' Call the message handler on any message not matching the MessageID. '''
-	while 1:
+	while True:
 		response = UnpackMessageFromSocket( sock )
 		if response.MessageID == MessageID:
 			return response
@@ -941,7 +941,7 @@ def getVendorName( vendorCode ):
 	for name, code in llrpdef.vendors.items():
 		if vendorCode == code:
 			return name
-	return ''
+	return str(vendorCode)
 
 if __name__ == '__main__':
 	import sys
