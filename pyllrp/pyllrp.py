@@ -1,14 +1,14 @@
+import io
 import sys
-import six
 import types
 import codecs
-import bitstring
 import itertools
+import bitstring
 try:
 	from . import llrpdef
 except:
 	import llrpdef
-llrpdef.choiceDefinitions = { k + '_Parameter' : v + '_Parameter' for k, v in six.iteritems(llrpdef.choiceDefinitions) }
+llrpdef.choiceDefinitions = { k + '_Parameter' : v + '_Parameter' for k, v in llrpdef.choiceDefinitions.items() }
 
 #----------------------------------------------------------------------------------
 # Python support for LLRP (Low Level Reader Protocol).
@@ -116,12 +116,12 @@ class _FieldDef( object ):
 					s.append( bitstring.Bits(uintbe=e, length=length) )
 			elif ftype == 'bitarray':
 				by = getattr(obj, attr, b'')	# Expects bytes.
-				if isinstance(by, six.integer_types):
+				if isinstance(by, int):
 					# Convert int to bytes.
 					assert by > 0, 'bitarray cannot be initialized with negative integer'
-					v = u'{:x}'.format(by)	# Convert to hex.
+					v = '{:x}'.format(by)	# Convert to hex.
 					if len(v) & 1:			# Ensure number has an even number of hex chars.
-						v = u'0' + v
+						v = '0' + v
 					by = codecs.encode( v, 'hex_codec' )	# Encode to bytes as hex.
 				s.append( bitstring.Bits(uintbe=len(by)*8, length=16) )
 				s.append( bitstring.Bits(bytes=by) )
@@ -218,7 +218,7 @@ def _initFieldDefs( self, *args, **kwargs ):
 		assert len(args) == 1, 'Cannot initialize more than one field with positional initialization'
 		setattr( self, self.__slots__[0], args[0] )
 		
-	for key, value in six.iteritems(kwargs):
+	for key, value in kwargs.items():
 		if key == 'MessageID':
 			self._MessageID = value
 		else:
@@ -242,7 +242,7 @@ def _getRepr( self, indent = 0 ):
 	values = self._getValues()
 	numValues = len(values) + (1 if hasattr(self, '_MessageID') else 0)
 	
-	s = six.StringIO()
+	s = io.StringIO()
 	def w( v ):
 		s.write( v )
 	def iw( v ):
@@ -315,7 +315,7 @@ def _validate( self, path = None ):
 		
 		if ftype.startswith('uintbe') or ftype.startswith('intbe') or ftype.startswith('bits'):
 			# Check type.
-			assert isinstance( value, six.integer_types ), '{}: field "{}" must be "int" type, not "{}"'.format(
+			assert isinstance( value, int ), '{}: field "{}" must be "int" type, not "{}"'.format(
 					'.'.join(path), name, value.__class__.__name__)
 			# Check range.
 			if ftype.startswith('uintbe'):
@@ -336,10 +336,10 @@ def _validate( self, path = None ):
 			assert isinstance( arr, list ), '{}: field "{}" must be "list" type, not "{}"'.format(
 					'.'.join(path), name, value.__class__.__name__)
 			for i, e in enumerate(arr):
-				assert isinstance( e, six.integer_types ), '{}: field "{}" must contain all "ints" (not "{}" at position {})'.format(
+				assert isinstance( e, int ), '{}: field "{}" must contain all "ints" (not "{}" at position {})'.format(
 						'.'.join(path), name, e.__class__.__name__, i)
 		elif ftype == 'string':
-			assert isinstance( value, six.string_types ), '{}: field "{}" must be "str" type, not "{}"'.format(
+			assert isinstance( value, str ), '{}: field "{}" must be "str" type, not "{}"'.format(
 					'.'.join(path), name, value.__class__.__name__)
 		elif ftype == 'bitarray':
 			assert isinstance( value, bytes ), '{}: field "{}" must be "bytes" type, not "{}"'.format(
@@ -824,26 +824,15 @@ def WaitForMessage( MessageID, sock, nonMatchingMessageHandler = None ):
 
 #-----------------------------------------------------------------------------
 
-if six.PY2:
-	def HexFormatToStr( value ):
-		if isinstance(value, bool):
-			return '1' if value else '0'
-		if isinstance(value, six.integer_types):
-			return '{:X}'.format(value)
-		return ''.join( '{:02X}'.format(ord(x)) for x in value ).lstrip('0')
+def HexFormatToStr( value ):
+	if isinstance(value, bool):
+		return '1' if value else '0'
+	if isinstance(value, int):
+		return '{:X}'.format(value)
+	return ''.join( '{:02X}'.format(x) for x in value ).lstrip('0')
 
-	def HexFormatToInt( value ):
-		return int(''.join( '{:02X}'.format(ord(x)) for x in value ), 16)
-else:
-	def HexFormatToStr( value ):
-		if isinstance(value, bool):
-			return '1' if value else '0'
-		if isinstance(value, int):
-			return '{:X}'.format(value)
-		return ''.join( '{:02X}'.format(x) for x in value ).lstrip('0')
-
-	def HexFormatToInt( value ):
-		return int(''.join( '{:02X}'.format(x) for x in value ), 16)
+def HexFormatToInt( value ):
+	return int(''.join( '{:02X}'.format(x) for x in value ), 16)
 
 def GetBasicAddRospecMessage( MessageID = None, ROSpecID = 123, inventoryParameterSpecID = 1234, antennas = None ):
 	#-----------------------------------------------------------------------------

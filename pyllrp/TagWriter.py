@@ -4,7 +4,7 @@ from .pyllrp import *
 from . import TagInventory
 
 def padToWords( epc ):
-	epc = u'{}'.format(epc)
+	epc = '{}'.format(epc)
 	len_epc = len(epc)
 	return epc.zfill( len_epc + (-len_epc%4) )
 	
@@ -17,7 +17,7 @@ def addLengthPrefix( epc ):
 	# Then, add the length in words as the highest 5-bits of the first word.
 	# We don't care about the other bits - just leave them at zero.
 	epc = padToWords( epc )
-	epc = u'{:04X}{}'.format( (len(epc)//4)<<(16-5), epc )
+	epc = '{:04X}{}'.format( (len(epc)//4)<<(16-5), epc )
 	return epc
 	
 def hexToWords( epc ):

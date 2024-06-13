@@ -63,8 +63,8 @@ class TagInventory( object ):
 		if self.transmitPower is not None:
 			transmitPowerParameter.append(
 				RFTransmitter_Parameter( 
-					HopTableID = 1,
-					ChannelIndex = 0,
+					HopTableID = 1,						# This field is ignored in non-frequency-hopping regulatory regions. 
+					ChannelIndex = 1,					# This field is ignored in non-frequency-hopping regulatory regions.
 					TransmitPower = self.transmitPower,
 				)
 			)

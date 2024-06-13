@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import os
-import io
 import sys
 import stat
 import glob
@@ -32,7 +31,7 @@ def removeTabs( buf, tabStop = 4 ):
 
 def writeToFile( s, fname ):
 	print( 'creating', fname, '...' )
-	with io.open(os.path.join(pypiDir,fname), 'w') as f:
+	with open(os.path.join(pypiDir,fname), 'w', encoding='utf8') as f:
 		f.write( s )
 
 #------------------------------------------------------
@@ -118,7 +117,7 @@ for fname in glob.glob( '*.*' ):
 	if not (fname.endswith( '.py' ) or fname.endswith('.pyw')) or fname == 'pypi.py':
 		continue
 	print( '   ', fname, '...' )
-	with io.open(fname, 'r') as f:
+	with open(fname, 'r', encoding='utf8') as f:
 		contents = f.read()
 	if contents.startswith('import'):
 		p = 0
@@ -138,7 +137,7 @@ for fname in glob.glob( '*.*' ):
 							
 	contents = removeTabs( contents )
 	contents.replace( '\r\n', '\n' )
-	with io.open(os.path.join(srcDir, fname), 'w' ) as f:
+	with open(os.path.join(srcDir, fname, encoding='utf8'), 'w' ) as f:
 		f.write( contents )
 
 
@@ -155,17 +154,16 @@ setup = {
 	'description':	'pyllrp: a pure Python implementation of LLRP (Low Level Reader Protocol).',
 	'install_requires':	[
 		'bitstring >= 3.1.1',
-		'six',
 	],
 	'classifiers' : [
 		'Development Status :: 3 - Alpha',
 		'License :: OSI Approved :: MIT License',
-		'Programming Language :: Python :: 2.7 :: Python :: 3',
+		'Programming Language :: Python :: 3',
 		"Operating System :: OS Independent",
 	],
 }
 
-with io.open(os.path.join(pypiDir,'setup.py'), 'w') as f:
+with open(os.path.join(pypiDir,'setup.py', encoding='utf8'), 'w') as f:
 	f.write( 'from distutils.core import setup\n' )
 	f.write( 'setup(\n' )
 	for key, value in setup.items():
