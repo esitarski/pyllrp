@@ -30,5 +30,5 @@ Description:
 Platform: UNKNOWN
 Classifier: Development Status :: 3 - Alpha
 Classifier: License :: OSI Approved :: MIT License
-Classifier: Programming Language :: Python :: 2.7 :: Python :: 3
+Classifier: Programming Language :: Python :: Python :: 3
 Classifier: Operating System :: OS Independent
