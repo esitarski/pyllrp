@@ -301,58 +301,53 @@ def _validate( self, path = None ):
 		path = []
 	path.append( self.__class__.__name__ )
 	
+	path_str = '.'.join( path )
 	for f in self.FieldDefs:
 		ftype = f.TypeCode
-		if ftype.startswith('skip'):	# Pass over "skip" fields first as there is no field.
+		if ftype.startswith('skip'):	# Pass over "skip" fields first as there is no field to validate.
 			continue
 			
-		name = f.Name
+		name = f.Name					# Name of this field.
 		assert hasattr(self, name), '{}: Missing attribute: {}'.format('.'.join(path), name)
-		value = getattr( self, name )
+		value = getattr( self, name )	# Value of this field.
 		
 		if f.Enum:
-			assert f.Enum.getName(value), '{}: field "{}" must have value in enumeration: {}'.format('.'.join(path), name, f.Enum)
+			assert f.Enum.getName(value), f'{path_str}: field "{name}" must have value in enumeration: {f.Enum}'
 		
 		if ftype.startswith('uintbe') or ftype.startswith('intbe') or ftype.startswith('bits'):
 			# Check type.
-			assert isinstance( value, int ), '{}: field "{}" must be "int" type, not "{}"'.format(
-					'.'.join(path), name, value.__class__.__name__)
-			# Check range.
+			assert isinstance( value, int ), f'{path_str}: field "{name}" must be "int" type, not "{value.__class__.__name__}"'
+			
+			# Check range if not bits.
+			vtype = None
 			if ftype.startswith('uintbe'):
+				value_min = 1 if name == 'ChannelIndex' else 0		# Exception: ChannelIndex is 1-based, not 0-based.
 				value_max = (1<<int(ftype.split(':')[1])) - 1
-				assert value <= value_max, '{}: "uint" field "{}={}" must be in range [0,{}]'.format(
-						'.'.join(path), name, value, value_max )
+				assert value_min <= value <= value_max, f'{path_str}: "uint" field "{name}={value}" must be in range [{value_min},{value_max}]'
 			elif ftype.startswith('intbe'):
 				bit_count = int(ftype.split(':')[1])
 				value_min = -(1<<(bit_count-1))
 				value_max = -value_min - 1
-				assert value_min <= value <= value_max, '{}: "int" field "{}={}" must be in range [{},{}]'.format(
-						'.'.join(path), name, value, value_min, value_max )
+				assert value_min <= value <= value_max, f'{path_str}: "int" field "{name}={value}" must be in range [{value_min},{value_max}]'
 		elif ftype == 'bool':
-			assert isinstance( value, bool ), '{}: field "{}" must be "bool" type, not "{}"'.format(
-					'.'.join(path), name, value.__class__.__name__)
+			assert isinstance( value, bool ), f'{path_str}: field "{name}" must be "bool" type, not "{value.__class__.__name__}"'
 		elif ftype.startswith('array'):
 			arr = value
-			assert isinstance( arr, list ), '{}: field "{}" must be "list" type, not "{}"'.format(
-					'.'.join(path), name, value.__class__.__name__)
+			assert isinstance( arr, list ), f'{path_str}: field "{name}" must be "list" type, not "{value.__class__.__name__}"'
 			for i, e in enumerate(arr):
-				assert isinstance( e, int ), '{}: field "{}" must contain all "ints" (not "{}" at position {})'.format(
-						'.'.join(path), name, e.__class__.__name__, i)
+				assert isinstance( e, int ), f'{path_str}: field "{name}" must contain all "ints" (not "{e.__class__.__name__}" at position {i})'
 		elif ftype == 'string':
-			assert isinstance( value, str ), '{}: field "{}" must be "str" type, not "{}"'.format(
-					'.'.join(path), name, value.__class__.__name__)
+			assert isinstance( value, str ), f'{path_str}: field "{name}" must be "str" type, not "{value.__class__.__name__}"'
 		elif ftype == 'bitarray':
-			assert isinstance( value, bytes ), '{}: field "{}" must be "bytes" type, not "{}"'.format(
-					'.'.join(path), name, value.__class__.__name__)
+			assert isinstance( value, bytes ), f'{path_str}: field "{name}" must be "bytes" type, not "{value.__class__.__name__}"'
 		elif ftype == 'bytesToEnd':
-			assert isinstance( value, bitstring.BitStream ), '{}: bytesToEnd field "{}" must be "bitstring.BitStream" type, not "{}"'.format(
-					'.'.join(path), name, value.__class__.__name__)
+			assert isinstance( value, bitstring.BitStream ), f'{path_str}: bytesToEnd field "{name}" must be "bitstring.BitStream" type, not "{value.__class__.__name__}"'
 		else:
-			assert False, '{}: Unknown field ftype: "{}"'.format('.'.join(path), ftype)
+			assert False, f'{oath_str}: Unknown field ftype: "{ftype}"'
 			
 	# Check that the number and type of parameters match the constraints.
 	if self.ParameterDefs is None:
-		assert not self.Parameters, '{}: No Parameters are allowed.'.format('.'.join(path))
+		assert not self.Parameters, f'{path_str}: No Parameters are allowed.'
 	else:
 		i, iMax = 0, len(self.Parameters)
 		for p in self.ParameterDefs:
@@ -364,8 +359,8 @@ def _validate( self, path = None ):
 				if nameCur != pName and llrpdef.choiceDefinitions.get(nameCur,'') != pName:
 					break
 				i += 1
-			assert i - iStart >= rMin, '{}: Missing Parameter ({}-{}) of type: {}'.format('.'.join(path), rMin, rMax, pName)
-			assert i - iStart <= rMax, '{}: Too many Parameters ({}-{}) of type: {}'.format('.'.join(path), rMin, rMax, pName)
+			assert i - iStart >= rMin, f'{path_str}: Missing Parameter ({rMin}-{rMax}) of type: {pName}'
+			assert i - iStart <= rMax, f'{path_str}: Too many Parameters ({rMin}-{rMax}) of type: {pName}'
 		
 	# Check that parameters are in the correct sequence.
 	sequenceLast = 0
@@ -380,7 +375,7 @@ def _validate( self, path = None ):
 			except KeyError:
 				sequenceCur = 99999999
 		
-		assert sequenceLast <= sequenceCur, '{}: Incorrect Parameter Sequence: {}'.format('.'.join(path), pName)
+		assert sequenceLast <= sequenceCur, f'{path_str}: Incorrect Parameter Sequence: {pName}'
 		sequenceLast = sequenceCur
 	
 	# Recursively validate all parameters.
@@ -1020,3 +1015,28 @@ if __name__ == '__main__':
 	m = UnpackMessage( s )
 	print( m )
 	
+	#---------------------------------------------------------------------------
+	# Check if ChannelIndex value is validated correctly.
+	#
+	for ci in range(2):
+		message = SET_READER_CONFIG_Message( Parameters = [
+			AntennaConfiguration_Parameter( AntennaID = 0, Parameters = [
+				RFTransmitter_Parameter( 
+					TransmitPower = 8192,
+					HopTableID = 1,
+					ChannelIndex = ci,			# should assert if ChannelIndex = 0.
+				),
+				C1G2InventoryCommand_Parameter( Parameters = [
+					C1G2SingulationControl_Parameter(
+						Session = 0,
+						TagPopulation = 100,
+						TagTransitTime = 3000,
+					),
+				] ),
+			] ),
+		] )
+		try:
+			message._validate()
+		except Exception as e:
+			if ci == 0:
+				print( f'assert when ChannelIndex=0:\n\t{e}' )

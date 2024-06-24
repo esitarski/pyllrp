@@ -1,7 +1,11 @@
 import sys
 import codecs
-from .pyllrp import *
-from . import TagInventory
+try:
+	from .pyllrp import *
+	from . import TagInventory
+except Exception as e:
+	from pyllrp import *
+	import TagInventory
 
 def padToWords( epc ):
 	epc = '{}'.format(epc)

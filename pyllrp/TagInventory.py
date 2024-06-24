@@ -4,8 +4,12 @@ import sys
 import time
 import socket
 import datetime
-from .pyllrp import *
-from .LLRPConnector import LLRPConnector
+try:
+	from .pyllrp import *
+	from .LLRPConnector import LLRPConnector
+except Exception as e:
+	from pyllrp import *
+	from LLRPConnector import LLRPConnector
 
 class TagInventory( object ):
 	roSpecID = 123					# Arbitrary roSpecID.
@@ -34,21 +38,7 @@ class TagInventory( object ):
 	def DefaultHandler( self, connector, message ):
 		self.otherMessages.append( message )
 
-	def Connect( self ):
-		# Create the reader connection.
-		self.connector = LLRPConnector()
-
-		# Connect to the reader.
-		try:
-			response = self.connector.connect( self.host )
-		except socket.timeout:
-			self.connector.disconnect()
-			raise
-			
-		# Reset to factory defaults.
-		response = self.connector.transact( SET_READER_CONFIG_Message(ResetToFactoryDefault = True) )
-		assert response.success(), 'SET_READER_CONFIG ResetToFactorDefault fails\n{}'.format(response)
-
+	def _getReaderConfigMessage( self ):
 		# Change receiver sensitivity (if specified).  This value is RFID reader dependent.
 		receiverSensitivityParameter = []
 		if self.receiverSensitivity is not None:
@@ -63,25 +53,42 @@ class TagInventory( object ):
 		if self.transmitPower is not None:
 			transmitPowerParameter.append(
 				RFTransmitter_Parameter( 
-					HopTableID = 1,						# This field is ignored in non-frequency-hopping regulatory regions. 
-					ChannelIndex = 1,					# This field is ignored in non-frequency-hopping regulatory regions.
 					TransmitPower = self.transmitPower,
+					HopTableID = 1,						# Ignored in non-frequency-hopping regulatory regions. 
+					ChannelIndex = 1,					# Ignored in non-frequency-hopping regulatory regions.
 				)
 			)
 		
-		message = SET_READER_CONFIG_Message( Parameters = [
-				AntennaConfiguration_Parameter( AntennaID = 0, Parameters =
-					receiverSensitivityParameter + transmitPowerParameter + [
-					C1G2InventoryCommand_Parameter( Parameters = [
-						C1G2SingulationControl_Parameter(
-							Session = 0,
-							TagPopulation = 100,
-							TagTransitTime = 3000,
-						),
-					] ),
+		return SET_READER_CONFIG_Message( Parameters = [
+			AntennaConfiguration_Parameter( AntennaID = 0, Parameters =
+				receiverSensitivityParameter +
+				transmitPowerParameter + [
+				C1G2InventoryCommand_Parameter( Parameters = [
+					C1G2SingulationControl_Parameter(
+						Session = 0,
+						TagPopulation = 100,
+						TagTransitTime = 3000,
+					),
 				] ),
-			] )
-		
+			] ),
+		] )
+
+	def Connect( self ):
+		# Create the reader connection.
+		self.connector = LLRPConnector()
+
+		# Connect to the reader.
+		try:
+			response = self.connector.connect( self.host )
+		except socket.timeout:
+			self.connector.disconnect()
+			raise
+			
+		# Reset to factory defaults.
+		response = self.connector.transact( SET_READER_CONFIG_Message(ResetToFactoryDefault = True) )
+		assert response.success(), f'SET_READER_CONFIG ResetToFactorDefault fails\n{response}'
+
+		message = self._getReaderConfigMessage()
 		response = self.connector.transact( message )
 		assert response.success(), 'SET_READER_CONFIG Configuration fails:\n{}'.format(response)
 		

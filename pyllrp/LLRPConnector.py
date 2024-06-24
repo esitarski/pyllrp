@@ -3,7 +3,10 @@ from queue import Queue, Empty
 import socket
 import datetime
 import threading
-from .pyllrp import *
+try:
+	from .pyllrp import *
+except Exception as e:
+	from pyllrp import *
 
 class LLRPConnector:
 	#--------------------------------------------------------------------------
@@ -107,7 +110,7 @@ class LLRPConnector:
 			except KeyError:
 				pass
 		else:
-			while 1:
+			while True:
 				try:
 					self.handlers[messageClass].remove( handlerFunc )
 				except (KeyError, ValueError):

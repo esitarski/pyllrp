@@ -5,10 +5,16 @@ import time
 import socket
 import datetime
 
-from .pyllrp import *
-from .AutoDetect import AutoDetect
-from .LLRPConnector import LLRPConnector
-from .TagInventory import TagInventory
+try:
+	from . import llrpdef
+	from .AutoDetect import AutoDetect
+	from .LLRPConnector import LLRPConnector
+	from .TagInventory import TagInventory
+except Exception as e:
+	import llrpdef
+	from AutoDetect import AutoDetect
+	from LLRPConnector import LLRPConnector
+	from TagInventory import TagInventory
 
 #-----------------------------------------------------------------------------------------
 
