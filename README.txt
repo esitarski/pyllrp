@@ -9,12 +9,12 @@ See the LLRP spec (https://www.gs1.org/sites/default/files/docs/epc/llrp_1_0_1-s
 
 pyllrp enables quick-and-easy scripting in fully portable pure Python to create LLRP applications.
 
-It is used extensively in CrossMgr for RFID race timing.
+It is used extensively in CrossMgr, RaceDB, TagReadWrite for RFID and race timing.
 
 The implementation is 100% complete.  All LLRP features and all Impinj custom extensions are supported.
 
 * Message and Parameters are full Python classes.
-* Full validation of all LLRP Messages and Parameters including data types, data values, parameter sequence and count.
+* Full validation of all LLRP Messages and Parameters including data types, data ranges, parameter sequence and count.
 * Full support for enumerated values - no hardcoded values.
 * Impossible to pass incorrect or malformed LLRP messages to the reader.
 
@@ -40,8 +40,12 @@ To run TinyExample, from the top pyllrp directory, enter "python3 -m pyllrp.Tiny
 
 How it works:
 
-ParseDef.py reads the XML spec files and generates the llrpdef.py file.  During this process, it translates the LLRP data types into bitstream representation and processes the XML into Python-friendly structures.
+ParseDef.py reads the LLRP XML spec files and generates the llrpdef.py file.  During this process, it translates the LLRP data types into bitstream representation and processes the XML into Python-friendly structures.
 ParseDef must be run every time the XML files change.
 
 At run time, pyllrp.py imports llrpdef and does a 1-time augmentation on the Messages, Parameters and Enums into classes.
-It adds the binary pack/unpack, validation and human-readable formating functions.  This effort is minimal due to the llrpdef.py pre-processing.
+It adds the binary pack/unpack, validation and human-readable formating functions.  Startup time is minimal due to the llrpdef.py pre-processing.
+
+Stuff to do:
+
+Because the classes are created dynamically, python linters (eg. flake8) do not understand pyllrp classes.

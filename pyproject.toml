@@ -1,0 +1,32 @@
+[project]
+name='pyllrp'
+version="3.1.0"
+dependencies = ["bitstring >= 3.1.1"]
+requires-python = ">= 3.8"
+
+authors=[{name="Edward Sitarski", email="edward.sitarski@gmail.com"}]
+description="A complete implementation of LLRP (Low Level Reader Protocol) in pure Python."
+readme = "README.txt"
+license= {file = 'License.txt'}
+keywords = ["LLRP", "RFID", "Impinj Reader"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+
+  "Intended Audience :: Developers",
+  "Topic :: System :: Hardware :: Hardware Drivers",
+
+  "License :: OSI Approved :: MIT License",
+
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+
+[project.urls]
+Homepage="https://github.com/esitarski/pyllrp"
+Repository="https://github.com/esitarski/pyllrp"
+Issues="https://github.com/esitarski/pyllrp/issues"
+
+

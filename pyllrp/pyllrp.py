@@ -163,7 +163,7 @@ class _FieldDef( object ):
 #----------------------------------------------------------------------------------
 
 class _EnumDef( object ):
-	''' A class for llrp enumerated values. '''
+	''' A small class for llrp enumerated values. '''
 	__slots__ = ['_name', '_choices', '_valueToName', '_nameToValue']
 
 	def __init__( self, name, choices ):
@@ -174,7 +174,7 @@ class _EnumDef( object ):
 		
 	def __getattr__( self, attr ):
 		return self._nameToValue[attr]
-
+		
 	def getName( self, value ):
 		if isinstance(value, list):
 			return '[{}]'.format( ','.join( self.getName(v) for v in value ) )
@@ -183,7 +183,7 @@ class _EnumDef( object ):
 				value = int(value)
 			return self._valueToName[value]
 		except KeyError:
-			return 'UnknownEnum={}'.format( value )
+			return f'UnknownEnum={value}'
 		
 	def valid( self, value ):
 		return value in self._valueToName
