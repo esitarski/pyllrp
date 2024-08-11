@@ -1,6 +1,4 @@
-import re
 import socket
-import subprocess
 import threading
 from queue import Queue, Empty
 try:

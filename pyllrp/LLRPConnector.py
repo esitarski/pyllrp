@@ -87,7 +87,7 @@ class LLRPConnector:
 		response = None
 		try:
 			response = self.transact( CLOSE_CONNECTION_Message() )
-		except:
+		except Exception:
 			pass
 		
 		self.readerSocket.close()
@@ -133,7 +133,7 @@ class LLRPConnector:
 			
 		try:
 			# Check the shutdown queue for a message.  If there is one, shutdown.
-			d = self.shutdownQ.get( False )
+			self.shutdownQ.get( False )
 			self.shutdownQ.task_done()
 			self.keepGoing = False
 			return False

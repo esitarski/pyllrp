@@ -1,9 +1,7 @@
 #!/usr/bin/env python
-import os
 import sys
 import time
 import socket
-import datetime
 try:
 	from .pyllrp import *
 	from .LLRPConnector import LLRPConnector
@@ -11,7 +9,7 @@ except Exception as e:
 	from pyllrp import *
 	from LLRPConnector import LLRPConnector
 
-class TagInventory( object ):
+class TagInventory:
 	roSpecID = 123					# Arbitrary roSpecID.
 	inventoryParameterSpecID = 1234	# Arbitrary inventory parameter spec id.
 	readWaitMilliseconds = 100
@@ -93,7 +91,7 @@ class TagInventory( object ):
 		assert response.success(), 'SET_READER_CONFIG Configuration fails:\n{}'.format(response)
 		
 	def Disconnect( self ):
-		response = self.connector.disconnect()
+		self.connector.disconnect()
 		self.connector = None
 
 	def GetROSpec( self, antennas = None ):
@@ -189,17 +187,18 @@ class TagInventory( object ):
 
 if __name__ == '__main__':
 	'''Read a tag inventory from the reader and shutdown.'''
-	sys.stdout.write( '**** full power\n' )
+	print( '**** full power' )
 	host = '192.168.0.101'
 	ti = TagInventory( host )
 	ti.Connect()
 	tagInventory, otherMessages = ti.GetTagInventory()
-	sys.stdout.write( '{}\n'.format('\n'.join(tagInventory)) )
+	print( '\n'.join(tagInventory) )
 	ti.Disconnect()
 	
 	for p in range(1, 100, 10):
 		ti = TagInventory( host, transmitPower = p )
 		ti.Connect()
 		tagInventory, otherMessages = ti.GetTagInventory()
-		sys.stdout.write( '**** power={}\n{}\n'.format(p, '\n'.join(tagInventory)) )
+		print( f'**** power={p}' )
+		print( '\n'.join(tagInventory) )
 		ti.Disconnect()

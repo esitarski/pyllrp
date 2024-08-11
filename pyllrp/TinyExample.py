@@ -1,9 +1,6 @@
 #!/usr/bin/env python
-import os
 import sys
 import time
-import socket
-import datetime
 
 try:
 	from . import llrpdef

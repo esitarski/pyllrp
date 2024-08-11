@@ -1,5 +1,3 @@
-import sys
-import codecs
 try:
 	from .pyllrp import *
 	from . import TagInventory

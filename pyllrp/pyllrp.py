@@ -1,12 +1,10 @@
 import io
-import sys
-import types
 import codecs
 import itertools
 import bitstring
 try:
 	from . import llrpdef
-except:
+except Exception:
 	import llrpdef
 llrpdef.choiceDefinitions = { k + '_Parameter' : v + '_Parameter' for k, v in llrpdef.choiceDefinitions.items() }
 
@@ -16,13 +14,16 @@ llrpdef.choiceDefinitions = { k + '_Parameter' : v + '_Parameter' for k, v in ll
 #
 # Edward Sitarski, 2013 (edward.sitarski@gmail.com)
 #
-# This code parses the LLRP definitions in XML to a python-friendly form.
-# It then reads the compiled specs and dynamically generates Python classes for all the reader messages.
-# For an example, see TagInventory.py and TagWriter.py.
+# The idea is to parse the LLRP definitions in XML and translate them into a python-friendly form.
+# Then read the compiled form and dynamically generate Python classes, supporting all LLRP messages, parameters
+# and the full Impinj extension
+# For examples, see TagInventory.py and TagWriter.py.
 #
-# All constraints on the messages are enforced including parameter ordering and values.
+# The advantage of parsing the XML is that there is a lot to the LLRP specification there.
+# pyllrp enforces all protocol constraints, including parameter ordering and values.
 #
-# All unspecified integer fields are initialized to zero, all boolean fields are initialized to False, all strings to empty.
+# Missing fields are allowed.
+# All integer fields are initialized to zero, all boolean fields are initialized to False, all strings to empty.
 #
 # The PackUnpack classes handle the variable number of Parameters in Messages, in Parameters,
 # and Parameters nested in Parameters.
@@ -69,7 +70,7 @@ class _FieldDef( object ):
 			setattr( obj, attr, s.read(ftype) )
 		elif ftype == 'string':
 			length = s.read( 'uintbe:16' )
-			eftype = 'bytes:{}'.format(length)
+			eftype = f'bytes:{length}'
 			st = s.read( eftype )
 			setattr( obj, attr, st.decode().rstrip('\x00') )		# Decode utf-8
 		elif ftype.startswith('array'):
@@ -79,18 +80,18 @@ class _FieldDef( object ):
 			setattr( obj, attr, arr )
 		elif ftype == 'bitarray':
 			length = s.read( 'uintbe:16' )
-			eftype = 'bits:{}'.format(length)
+			eftype = f'bits:{length}'
 			bstr = s.read( eftype )
 			setattr( obj, attr, bstr.tobytes() )
 		elif ftype.startswith('skip'):
 			skip = int(ftype.split(':',1)[1])
-			s.read( 'int:{}'.format(skip) )
+			s.read( f'int:{skip}' )
 		elif ftype == 'bytesToEnd':
 			assert bytesRemaining is not None, 'bytesToEnd type requires bytesRemaining to be set'
-			by = s.read( 'bytes:{}'.format(bytesRemaining) )		# Read as bytes.
+			by = s.read( f'bytes:{bytesRemaining}' )		# Read as bytes.
 			setattr( obj, attr, bitstring.BitStream(bytes=by) )		# Set attr to a bitstream.
 		else:
-			assert False, 'Unknown FieldDef type: "{}"'.format( ftype )
+			assert False, f'Unknown FieldDef type: "{ftype}"'
 
 	def write( self, s, obj ):
 		''' Write the field from the obj to the bitstring. '''
@@ -105,7 +106,7 @@ class _FieldDef( object ):
 				for i in range(length-1, -1, -1):
 					s.append( bitstring.pack('bool', bool(v & (1<<i))) )
 			elif ftype == 'string':
-				by = getattr(obj, attr, u'').encode()	# Encode utf-8.
+				by = getattr(obj, attr, '').encode()	# Encode utf-8.
 				s.append( bitstring.Bits(uintbe=len(by), length=16) )
 				s.append( bitstring.Bits(bytes=by) )
 			elif ftype.startswith('array'):
@@ -119,8 +120,8 @@ class _FieldDef( object ):
 				if isinstance(by, int):
 					# Convert int to bytes.
 					assert by > 0, 'bitarray cannot be initialized with negative integer'
-					v = '{:x}'.format(by)	# Convert to hex.
-					if len(v) & 1:			# Ensure number has an even number of hex chars.
+					v = f'{by:x}'			# Convert to hex.
+					if len(v) & 1:			# Ensure hex number has an even number of hex chars.
 						v = '0' + v
 					by = codecs.encode( v, 'hex_codec' )	# Encode to bytes as hex.
 				s.append( bitstring.Bits(uintbe=len(by)*8, length=16) )
@@ -128,13 +129,13 @@ class _FieldDef( object ):
 			elif ftype.startswith('skip'):
 				skip = int(ftype.split(':',1)[1])
 				assert skip > 0
-				s.append( bitstring.pack('int:{}=0'.format(skip) ) )
+				s.append( bitstring.pack(f'int:{skip}=0') )
 			elif ftype == 'bytesToEnd':
 				s.append( getattr(obj, attr) )		# assume the field is a bitstream
 			else:
 				assert False
 		except bitstring.CreationError as e:
-			print ( 'write: {} {} {}\n'.format(ftype, attr, getattr(obj, attr)) )
+			print ( f'write: {ftype} {attr} {getattr(obj, attr)}\n' )
 			raise
 
 	def init( self, obj ):
@@ -155,10 +156,10 @@ class _FieldDef( object ):
 			assert False
 			setattr( obj, attr, bitstring.BitStream() )
 		else:
-			assert ftype.startswith('skip'), 'Unknown field type: "{}"'.format(ftype)
+			assert ftype.startswith('skip'), 'Unknown field type: "{ftype}"'
 			
 	def __repr__( self ):
-		return 'FieldDef( "{}", "{}" )'.format( self.Name, self.TypeCode )
+		return f'FieldDef( "{self.Name}", "{self.TypeCode}" )'
 
 #----------------------------------------------------------------------------------
 
@@ -251,7 +252,7 @@ def _getRepr( self, indent = 0 ):
 	
 	if numValues > 1 or self.Parameters:
 		# Output in long form (one line per value and parameter).
-		iw( '{}(\n'.format(self.Name) )
+		iw( f'{self.Name}(\n' )
 		try:
 			iw( '  {}={},\n'.format('MessageID', repr(self._MessageID)) )
 		except AttributeError:
@@ -319,7 +320,6 @@ def _validate( self, path = None ):
 			assert isinstance( value, int ), f'{path_str}: field "{name}" must be "int" type, not "{value.__class__.__name__}"'
 			
 			# Check range if not bits.
-			vtype = None
 			if ftype.startswith('uintbe'):
 				value_min = 1 if name == 'ChannelIndex' else 0		# Exception: ChannelIndex is 1-based, not 0-based.
 				value_max = (1<<int(ftype.split(':')[1])) - 1
@@ -343,7 +343,7 @@ def _validate( self, path = None ):
 		elif ftype == 'bytesToEnd':
 			assert isinstance( value, bitstring.BitStream ), f'{path_str}: bytesToEnd field "{name}" must be "bitstring.BitStream" type, not "{value.__class__.__name__}"'
 		else:
-			assert False, f'{oath_str}: Unknown field ftype: "{ftype}"'
+			assert False, f'{path_str}: Unknown field ftype: "{ftype}"'
 			
 	# Check that the number and type of parameters match the constraints.
 	if self.ParameterDefs is None:
@@ -397,7 +397,7 @@ def _getLLRPStatusSuccess( self ):
 	for p in self.Parameters:
 		if isinstance( p, LLRPStatus_Parameter ):
 			return p.StatusCode == StatusCode.M_Success
-	assert False, 'Message "{}" has no LLRPStatus parameter.'.format(self.__class__.__name__)
+	assert False, f'Message "{self.__class__.__name__}" has no LLRPStatus parameter.'
 
 def _getAllParametersByClass( self, parameterClass ):
 	for p in self.Parameters:
@@ -928,8 +928,6 @@ def getVendorName( vendorCode ):
 	return str(vendorCode)
 
 if __name__ == '__main__':
-	import sys
-	
 	c = IMPINJ_ENABLE_EXTENSIONS_Message()
 	print( c )
 	

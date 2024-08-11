@@ -6,10 +6,9 @@
 # It is also much faster to use the .pyc file rather than parsing XML again
 # on startup.
 #
-from xml.dom.minidom import parse
-import datetime
-import pprint
 import sys
+import pprint
+from xml.dom.minidom import parse
 
 # Map the xml field types to our types (bitstring standard, and our custom ones).
 fieldMap = {
@@ -68,11 +67,11 @@ def getParameterMessage( n, isMessage ):
 			fieldInfo = { 'name': toAscii(c.attributes['name'].value), 'type': fieldMap[toAscii(c.attributes['type'].value)] }
 			try:
 				fieldInfo['enumeration'] = toAscii(c.attributes['enumeration'].value)
-			except:
+			except Exception:
 				pass
 			try:
 				fieldInfo['format'] = toAscii(c.attributes['format'].value)
-			except:
+			except Exception:
 				pass
 			Fields.append( fieldInfo )
 		elif c.nodeName == 'reserved':
