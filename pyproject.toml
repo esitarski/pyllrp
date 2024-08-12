@@ -1,6 +1,6 @@
 [project]
 name='pyllrp'
-version="3.1.0"
+version="3.1.1"
 dependencies = ["bitstring >= 3.1.1"]
 requires-python = ">= 3.8"
 

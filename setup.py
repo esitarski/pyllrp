@@ -1,7 +1,7 @@
 from distutils.core import setup
 setup(
     name='pyllrp',
-    version='3.1.0',
+    version='3.1.1',
     author='Edward Sitarski',
     author_email='edward.sitarski@gmail.com',
     url='http://www.sites.google.com/site/crossmgrsoftware/',

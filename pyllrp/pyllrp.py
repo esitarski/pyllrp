@@ -34,7 +34,7 @@ llrpdef.choiceDefinitions = { k + '_Parameter' : v + '_Parameter' for k, v in ll
 #
 # A Message class looks as follows if it were declared in Python:
 #
-# class MESSAGE_Message( object ):
+# class MESSAGE_Message:
 #	def __init__( self, <fields specific to message> )
 #		# Any fields not specified take default values.
 #		pass
@@ -50,7 +50,7 @@ llrpdef.choiceDefinitions = { k + '_Parameter' : v + '_Parameter' for k, v in ll
 
 CustomTypeCode = 1023
 
-class _FieldDef( object ):
+class _FieldDef:
 	__slots__ = ['Name', 'TypeCode', 'Enum', 'Format', 'Default']
 	
 	def __init__( self, Name, TypeCode, Enum = None, Format = None, Default = None ):
@@ -135,7 +135,7 @@ class _FieldDef( object ):
 			else:
 				assert False
 		except bitstring.CreationError as e:
-			print ( f'write: {ftype} {attr} {getattr(obj, attr)}\n' )
+			print( f'write: {ftype} {attr} {getattr(obj, attr)}' )
 			raise
 
 	def init( self, obj ):
@@ -147,7 +147,7 @@ class _FieldDef( object ):
 		elif ftype == 'bool':
 			setattr( obj, attr, False )
 		elif ftype == 'string':
-			setattr( obj, attr, u'' )
+			setattr( obj, attr, '' )
 		elif ftype.startswith('array'):
 			setattr( obj, attr, [] )
 		elif ftype == 'bitarray':
@@ -156,14 +156,14 @@ class _FieldDef( object ):
 			assert False
 			setattr( obj, attr, bitstring.BitStream() )
 		else:
-			assert ftype.startswith('skip'), 'Unknown field type: "{ftype}"'
+			assert ftype.startswith('skip'), f'Unknown field type: "{ftype}"'
 			
 	def __repr__( self ):
 		return f'FieldDef( "{self.Name}", "{self.TypeCode}" )'
 
 #----------------------------------------------------------------------------------
 
-class _EnumDef( object ):
+class _EnumDef:
 	''' A small class for llrp enumerated values. '''
 	__slots__ = ['_name', '_choices', '_valueToName', '_nameToValue']
 
@@ -455,7 +455,7 @@ def _MakeClass( messageOrParameter, Name, TypeCode, PackUnpack ):
 
 #---------------------------------------------------------------------------------------------------------
 
-class _MessagePackUnpack( object ):
+class _MessagePackUnpack:
 	''' Pack and Unpack an LLRP Message. '''
 	def __init__( self, TypeCode, Name, FieldDefs, ParameterDefs ):
 		self.TypeCode = TypeCode
@@ -540,7 +540,7 @@ class _MessagePackUnpack( object ):
 
 #---------------------------------------------------------------------------------------------------------
 
-class _ParameterPackUnpack( object ):
+class _ParameterPackUnpack:
 	''' Pack and Unpack an LLRP Parameter (TLV or TV encoding). '''
 	TLV = 'TLV'
 	TV = 'TV'
@@ -821,13 +821,13 @@ def WaitForMessage( MessageID, sock, nonMatchingMessageHandler = None ):
 
 def HexFormatToStr( value ):
 	if isinstance(value, bool):
-		return '1' if value else '0'
+		return ('0','1')[value]
 	if isinstance(value, int):
-		return '{:X}'.format(value)
-	return ''.join( '{:02X}'.format(x) for x in value ).lstrip('0')
+		return f'{value:X}'
+	return ''.join( f'{x:02X}' for x in value ).lstrip('0')
 
 def HexFormatToInt( value ):
-	return int(''.join( '{:02X}'.format(x) for x in value ), 16)
+	return int(''.join( f'{x:02X}' for x in value ), 16)
 
 def GetBasicAddRospecMessage( MessageID = None, ROSpecID = 123, inventoryParameterSpecID = 1234, antennas = None ):
 	#-----------------------------------------------------------------------------

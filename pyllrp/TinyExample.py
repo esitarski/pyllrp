@@ -3,12 +3,12 @@ import sys
 import time
 
 try:
-	from . import llrpdef
+	from . import pyllrp
 	from .AutoDetect import AutoDetect
 	from .LLRPConnector import LLRPConnector
 	from .TagInventory import TagInventory
 except Exception as e:
-	import llrpdef
+	import pyllrp
 	from AutoDetect import AutoDetect
 	from LLRPConnector import LLRPConnector
 	from TagInventory import TagInventory
