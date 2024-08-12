@@ -6,7 +6,7 @@ requires-python = ">= 3.8"
 
 authors=[{name="Edward Sitarski", email="edward.sitarski@gmail.com"}]
 description="A complete implementation of LLRP (Low Level Reader Protocol) in pure Python."
-readme = "README.txt"
+readme = "README.md"
 license= {file = 'License.txt'}
 keywords = ["LLRP", "RFID", "Impinj Reader"]
 classifiers = [
