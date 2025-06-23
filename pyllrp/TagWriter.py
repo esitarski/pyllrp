@@ -28,7 +28,7 @@ def hexToWords( epc ):
 
 def hexToBytes( epc ):
 	assert len(epc) % 2 == 0, 'epc must be a byte multiple'
-	return codec.decode(epc, 'hex_codec')
+	return codecs.decode(epc, 'hex_codec')
 
 class TagWriter( TagInventory.TagInventory ):
 	accessSpecID = 456
