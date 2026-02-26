@@ -9,6 +9,9 @@ try:
 	from .TagInventory import TagInventory
 except Exception as e:
 	from pyllrp import *
+	from pyllrp.TagInventory import TagInventory
+	from pyllrp.TagWriter import TagWriter
+	from pyllrp.AutoDetect import AutoDetect
 
 #-----------------------------------------------------------------------------------------
 
