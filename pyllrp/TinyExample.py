@@ -8,10 +8,7 @@ try:
 	from .LLRPConnector import LLRPConnector
 	from .TagInventory import TagInventory
 except Exception as e:
-	import pyllrp
-	from AutoDetect import AutoDetect
-	from LLRPConnector import LLRPConnector
-	from TagInventory import TagInventory
+	from pyllrp import *
 
 #-----------------------------------------------------------------------------------------
 

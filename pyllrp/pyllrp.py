@@ -53,7 +53,7 @@ CustomTypeCode = 1023
 class _FieldDef:
 	__slots__ = ['Name', 'TypeCode', 'Enum', 'Format', 'Default']
 	
-	def __init__( self, Name, TypeCode, Enum = None, Format = None, Default = None ):
+	def __init__( self, Name:str, TypeCode:int, Enum:str|None = None, Format:str|None = None, Default = None ):
 		self.Name = Name
 		self.TypeCode = TypeCode
 		if Enum:
@@ -63,7 +63,7 @@ class _FieldDef:
 		self.Format = Format
 		self.Default = Default
 		
-	def read( self, s, obj, bytesRemaining = None ):
+	def read( self, s, obj, bytesRemaining:int|None = None ) -> None:
 		ftype = self.TypeCode
 		attr = self.Name
 		if 'intbe' in ftype or ftype == 'bool' or ftype.startswith('bits'):
@@ -91,9 +91,9 @@ class _FieldDef:
 			by = s.read( f'bytes:{bytesRemaining}' )		# Read as bytes.
 			setattr( obj, attr, bitstring.BitStream(bytes=by) )		# Set attr to a bitstream.
 		else:
-			assert False, f'Unknown FieldDef type: "{ftype}"'
+			raise TypeError( f'Unknown read FieldDef type: "{ftype}"' )
 
-	def write( self, s, obj ):
+	def write( self, s, obj ) -> None:
 		''' Write the field from the obj to the bitstring. '''
 		ftype = self.TypeCode
 		attr = self.Name
@@ -133,12 +133,12 @@ class _FieldDef:
 			elif ftype == 'bytesToEnd':
 				s.append( getattr(obj, attr) )		# assume the field is a bitstream
 			else:
-				assert False
+				raise TypeError( f'Unknown write FieldDef type: "{ftype}"' )
 		except bitstring.CreationError as e:
 			print( f'write: {ftype} {attr} {getattr(obj, attr)}' )
 			raise
 
-	def init( self, obj ):
+	def init( self, obj ) -> None:
 		''' Initialize a field value based on its ftype. '''
 		ftype = self.TypeCode
 		attr = self.Name
@@ -153,12 +153,12 @@ class _FieldDef:
 		elif ftype == 'bitarray':
 			setattr( obj, attr, bytes() )
 		elif ftype == 'bytesToEnd':
-			assert False
+			assert False, 'Cannot initalize bytesToEnd'
 			setattr( obj, attr, bitstring.BitStream() )
-		else:
-			assert ftype.startswith('skip'), f'Unknown field type: "{ftype}"'
+		elif not ftype.startswith('skip'):
+			raise TypeError( f'Unknown init FieldDef type: "{ftype}"' )
 			
-	def __repr__( self ):
+	def __repr__( self ) -> str:
 		return f'FieldDef( "{self.Name}", "{self.TypeCode}" )'
 
 #----------------------------------------------------------------------------------
@@ -167,17 +167,17 @@ class _EnumDef:
 	''' A small class for llrp enumerated values. '''
 	__slots__ = ['_name', '_choices', '_valueToName', '_nameToValue']
 
-	def __init__( self, name, choices ):
+	def __init__( self, name: str, choices: tuple[tuple[str, int]] ):
 		self._name = name
 		self._choices = choices
 		self._valueToName = { value:name for value, name in choices }
 		self._nameToValue = { name:value for value, name in choices }
 		
-	def __getattr__( self, attr ):
+	def __getattr__( self, attr: str ) -> int:
 		return self._nameToValue[attr]
 		
-	def getName( self, value ):
-		if isinstance(value, list):
+	def getName( self, value: int|bool|list[int]|tuple[int] ) -> str:
+		if isinstance(value, (list, tuple)):
 			return '[{}]'.format( ','.join( self.getName(v) for v in value ) )
 		try:
 			if isinstance(value, bool) and len(self._choices) == 2:
@@ -186,10 +186,10 @@ class _EnumDef:
 		except KeyError:
 			return f'UnknownEnum={value}'
 		
-	def valid( self, value ):
+	def valid( self, value: int ) -> bool:
 		return value in self._valueToName
 		
-	def __repr__( self ):
+	def __repr__( self ) -> str:
 		return '{}:\n  {}\n'.format(self._name, '\n  '.join( '{}={}'.format(name, str(value)) for value, name in self._choices))
 
 #----------------------------------------------------------------------------------
@@ -197,7 +197,7 @@ class _EnumDef:
 #
 _CurMessageIDCounter = itertools.count(1)
 
-def _initFieldDefs( self, *args, **kwargs ):
+def _initFieldDefs( self, *args, **kwargs ) -> None:
 	''' Initialize all data fields based on each format. '''
 	for f in self.FieldDefs:
 		f.init( self )
@@ -229,7 +229,7 @@ def _initFieldDefs( self, *args, **kwargs ):
 	if getattr(self, '_MessageID', 'NA') is None:
 		self._MessageID = next(_CurMessageIDCounter)
 
-def _setSingleField( self, value ):
+def _setSingleField( self, value ) -> None:
 	assert self.FieldCount == 1, 'Object can only have one field to initialize with _setSingleField'
 	setattr( self, self.__slots__[0], value )
 		
@@ -237,16 +237,18 @@ def _getValues( self ):
 	''' Get all specified values of an LLRP object. '''
 	return [(f.Name, getattr(self, f.Name)) for f in self.FieldDefs if not f.TypeCode.startswith('skip')]
 
-def _getRepr( self, indent = 0 ):
+def _getRepr( self, indent:int = 0 ):
 	''' Get the representation of an LLRP object. '''
 	# Check for the number of values
 	values = self._getValues()
 	numValues = len(values) + (1 if hasattr(self, '_MessageID') else 0)
 	
 	s = io.StringIO()
-	def w( v ):
+	
+	def w( v ) -> None:
 		s.write( v )
-	def iw( v ):
+	
+	def iw( v ) -> None:
 		s.write( '    ' * indent )
 		s.write( v )
 	
@@ -274,7 +276,7 @@ def _getRepr( self, indent = 0 ):
 		iw( '){}\n'.format(',' if indent else '') )
 	else:
 		# Output in short form as there is only one value.
-		iw( '{}( '.format(self.Name) )
+		iw( f'{self.Name}( ' )
 		try:
 			w( ' {}={} )\n'.format('MessageID', repr(self._MessageID)) )
 		except AttributeError:
@@ -296,7 +298,7 @@ def _addParameter( self, p ):
 def _getPTypeCodeName( pTypeCode ):
 	return pTypeCode.Name if not isinstance(pTypeCode, tuple) else ' or '.join( v.Name for v in pTypeCode )
 	
-def _validate( self, path = None ):
+def _validate( self, path: None | list[str] = None ):
 	''' Validate all the values of an LLRP object. '''
 	if not path:
 		path = []
@@ -410,12 +412,11 @@ def _getFirstParameterByClass( self, parameterClass ):
 	for p in self.Parameters:
 		if isinstance( p, parameterClass ):
 			return p
-		match = p.getFirstParameterByClass( parameterClass )
-		if match:
+		if match := p.getFirstParameterByClass( parameterClass ):
 			return match
 	return None
 		
-def _MakeClass( messageOrParameter, Name, TypeCode, PackUnpack ):
+def _MakeClass( messageOrParameter: str, Name: str, TypeCode: int, PackUnpack ):
 	''' Make an LLRP class (Message or Parameter). '''
 	extraFields = ['Parameters', '_Length']
 	if messageOrParameter == 'Message':
@@ -457,7 +458,7 @@ def _MakeClass( messageOrParameter, Name, TypeCode, PackUnpack ):
 
 class _MessagePackUnpack:
 	''' Pack and Unpack an LLRP Message. '''
-	def __init__( self, TypeCode, Name, FieldDefs, ParameterDefs ):
+	def __init__( self, TypeCode: int, Name: str, FieldDefs: list[_FieldDef] | tuple[_FieldDef], ParameterDefs: list[dict] | tuple[dict] | None):
 		self.TypeCode = TypeCode
 		self.Name = Name
 		self.FieldDefs = FieldDefs if Name != 'Custom' else FieldDefs[:2]
@@ -468,7 +469,7 @@ class _MessagePackUnpack:
 			self.ParameterSequence = {}
 		self.Code = self.getCode()
 
-	def isCustom( self ):
+	def isCustom( self ) -> bool:
 		try:
 			return (self.TypeCode == CustomTypeCode and
 					self.FieldDefs[0].Name == 'VendorIdentifier' and self.FieldDefs[0].Default is not None and
@@ -544,7 +545,8 @@ class _ParameterPackUnpack:
 	''' Pack and Unpack an LLRP Parameter (TLV or TV encoding). '''
 	TLV = 'TLV'
 	TV = 'TV'
-	def __init__( self, TypeCode, Name, Encoding, FieldDefs, ParameterDefs, Length = -1 ):
+	
+	def __init__( self, TypeCode:int , Name: str, Encoding: str, FieldDefs: list[_FieldDef] | tuple[_FieldDef], ParameterDefs: list[dict] | tuple[dict] | None, Length:int = -1 ):
 		self.TypeCode = TypeCode
 		self.Name = Name
 		self.Encoding = Encoding
@@ -557,7 +559,7 @@ class _ParameterPackUnpack:
 		self.Length = Length	# only for TV encoded _parameters
 		self.Code = self.getCode()
 
-	def isCustom( self ):
+	def isCustom( self ) -> bool:
 		if self.Name == 'Custom':	# Ironically, the Custom field is not a custom field.
 			return False
 		
@@ -649,7 +651,7 @@ class _ParameterPackUnpack:
 			p._Length = self.Length
 		return s
 
-def _DefTV( TypeCode, Name, FieldDefs ):
+def _DefTV( TypeCode:int, Name:str, FieldDefs:list[_FieldDef] | tuple[_FieldDef] ):
 	''' Define a TV parameter (no explicit length field). '''
 	Length = 8		# Adjust for the leading TypeCode (8 bits).
 	for f in FieldDefs:
@@ -658,11 +660,11 @@ def _DefTV( TypeCode, Name, FieldDefs ):
 	Length >>= 3	# Divide by 8 to get bytes from bits.
 	return _ParameterPackUnpack( TypeCode, Name, _ParameterPackUnpack.TV, FieldDefs, None, Length )
 	
-def _DefTLV( TypeCode, Name, FieldDefs, ParameterDefs ):
+def _DefTLV( TypeCode:int, Name:str, FieldDefs:list[_FieldDef] | tuple[_FieldDef], ParameterDefs:list[dict] | tuple[dict] ):
 	''' Define a TLV parameter (length field included). '''
 	return _ParameterPackUnpack( TypeCode, Name, _ParameterPackUnpack.TLV, FieldDefs, ParameterDefs )
 
-def _fixFieldDefs( fields ):
+def _fixFieldDefs( fields:list[dict] | tuple[dict] ):
 	return [_FieldDef(	f['name'],
 						f['type'],
 						f.get('enumeration', None),
@@ -758,7 +760,7 @@ def UnpackMessageFromSocket( sock ):
 	TypeCode &= ((1<<10)-1)
 	Length = s.read('uintbe:32')
 	
-	# print( 'UnpackMessageFromSocket: TypeCode={} Length={} {}'.format(TypeCode, Length, _messageClassFromTypeCode[TypeCode].__name__) )
+	# print( f'UnpackMessageFromSocket: TypeCode={TypeCode} Length={Length} {_messageClassFromTypeCode[TypeCode].__name__}' )
 	
 	# Read the remaining message based on the Length.
 	zeroLenChunkCount = 0
@@ -819,17 +821,17 @@ def WaitForMessage( MessageID, sock, nonMatchingMessageHandler = None ):
 
 #-----------------------------------------------------------------------------
 
-def HexFormatToStr( value ):
+def HexFormatToStr( value ) -> str:
 	if isinstance(value, bool):
 		return ('0','1')[value]
 	if isinstance(value, int):
 		return f'{value:X}'
 	return ''.join( f'{x:02X}' for x in value ).lstrip('0')
 
-def HexFormatToInt( value ):
+def HexFormatToInt( value ) -> int:
 	return int(''.join( f'{x:02X}' for x in value ), 16)
 
-def GetBasicAddRospecMessage( MessageID = None, ROSpecID = 123, inventoryParameterSpecID = 1234, antennas = None ):
+def GetBasicAddRospecMessage( MessageID:int|None = None, ROSpecID:int = 123, inventoryParameterSpecID:int = 1234, antennas:list[int]|tuple[int]|None = None ):
 	#-----------------------------------------------------------------------------
 	# Create a basic Reader Operation Spec message
 	#
@@ -888,7 +890,7 @@ def GetBasicAddRospecMessage( MessageID = None, ROSpecID = 123, inventoryParamet
 	])	# ADD_ROSPEC_Message
 	return rospecMessage
 
-def GetEnableRospecMesssage( MessageID, ROSpecID = 123 ):
+def GetEnableRospecMesssage( MessageID:int, ROSpecID:int = 123 ):
 	return ENABLE_ROSPEC_Message(MessageID = MessageID, ROSpecID = ROSpecID)
 	
 actions = {
@@ -921,7 +923,7 @@ RO_ACCESS_REPORT_Message.getTagData = _getTagData
 CUSTOM_MESSAGE_Message.FieldDefs = CUSTOM_MESSAGE_Message.FieldDefs[:-1]
 Custom_Parameter.FieldDefs = Custom_Parameter.FieldDefs[:-1]
 
-def getVendorName( vendorCode ):
+def getVendorName( vendorCode:int ) -> str:
 	for name, code in llrpdef.vendors.items():
 		if vendorCode == code:
 			return name
