@@ -2,6 +2,8 @@
 
 A 100% complete, pure Python implementation of LLRP (Low Level Reader Protocol) also with 100% support for Impinj extensions.
 
+Recently updated to support bitstream >= 5.0.
+
 Communicate with LLRP-compliant RFID readers including Impinj, Alien and ThingMagic.
 See the [LLRP spec](https://www.gs1.org/sites/default/files/docs/epc/llrp_1_0_1-standard-20070813.pdf) for full details.
 
