@@ -153,7 +153,8 @@ setup = {
 	'include_package_data': True,
 	'description':	'pyllrp: a pure Python implementation of LLRP (Low Level Reader Protocol).',
 	'install_requires':	[
-		'bitstring >= 3.1.1',
+		'numpy',
+		'bitstring >= 5.0',
 	],
 	'classifiers' : [
 		'Development Status :: 3 - Alpha',
