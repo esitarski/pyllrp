@@ -1,8 +1,8 @@
 [project]
 name='pyllrp'
 version="3.1.2"
-dependencies = ["bitstring >= 3.1.1"]
-requires-python = ">= 3.8"
+dependencies = ["numpy", "bitstring >= 5.0"]
+requires-python = ">= 3.11"
 
 authors=[{name="Edward Sitarski", email="edward.sitarski@gmail.com"}]
 description="A complete implementation of LLRP (Low Level Reader Protocol) in pure Python."
