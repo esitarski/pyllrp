@@ -430,7 +430,7 @@ def _MakeClass( messageOrParameter: str, Name: str, TypeCode: int, PackUnpack ):
 		'__slots__':		[ f.Name for f in PackUnpack.FieldDefs if not f.Name.startswith('skip') ] + extraFields, # Available fields in this object.
 		'ParameterDefs':	PackUnpack.ParameterDefs, # Parameters specified for this object.
 		'ParameterSequence':PackUnpack.ParameterSequence, # Required sequence of Parameters for this object.
-		'FieldCount':		sum( 1 for f in PackUnpack.FieldDefs if not f.Name.startswith('skip') ),			# Field count for convenience.
+		'FieldCount':		sum( (not f.Name.startswith('skip')) for f in PackUnpack.FieldDefs ),			# Field count for convenience.
 		'DataFields':		[ f for f in PackUnpack.FieldDefs if not f.Name.startswith('skip') ],				# List of data fields.
 		'__init__':			_initFieldDefs,			# Initialize the object and default field values.
 		'_setSingleField':	_setSingleField,		# Set the single field from a position argument (fails on multi-field objects).
@@ -755,7 +755,7 @@ def UnpackMessageFromSocket( sock ):
 		zeroLenChunkCount = 0
 	
 	# Convert to a BitStream to get the message TypeCode and Length.
-	s = bitstring.ConstBitStream( bytes=b''.join(chunks) )
+	s = bitstring.Reader(bitstring.Bits(bytes=b''.join(chunks)))
 	TypeCode = s.read('uintbe:16')
 	TypeCode &= ((1<<10)-1)
 	Length = s.read('uintbe:32')
@@ -776,7 +776,7 @@ def UnpackMessageFromSocket( sock ):
 		zeroLenChunkCount = 0
 	
 	# Convert the full message to a BitStream and parse it.
-	s = bitstring.ConstBitStream( bytes=b''.join(chunks) )
+	s = bitstring.Reader(bitstring.Bits(bytes=b''.join(chunks)))
 	return _MessagePackUnpackLookup[TypeCode].unpack( s )
 
 def UnpackMessage( s ):
@@ -960,7 +960,7 @@ if __name__ == '__main__':
 	print( m )
 	
 	bb=s.tobytes()
-	t = bitstring.ConstBitStream( bytes=bb )
+	t = bitstring.Reader(bitstring.Bits(bytes=bb))
 	n = UnpackMessage( t )
 	print( n )
 	
@@ -971,7 +971,7 @@ if __name__ == '__main__':
 	print( m )
 	
 	bb=s.tobytes()
-	t = bitstring.ConstBitStream( bytes=bb )
+	t = bitstring.Reader(bitstring.Bits(bytes=bb))
 	n = UnpackMessage( t )
 	print( n )
 	

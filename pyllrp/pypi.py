@@ -137,7 +137,7 @@ for fname in glob.glob( '*.*' ):
 							
 	contents = removeTabs( contents )
 	contents.replace( '\r\n', '\n' )
-	with open(os.path.join(srcDir, fname, encoding='utf8'), 'w' ) as f:
+	with open(os.path.join(srcDir, fname), 'w', encoding='utf8' ) as f:
 		f.write( contents )
 
 
@@ -163,7 +163,7 @@ setup = {
 	],
 }
 
-with open(os.path.join(pypiDir,'setup.py', encoding='utf8'), 'w') as f:
+with open(os.path.join(pypiDir,'setup.py'), 'w', encoding='utf8') as f:
 	f.write( 'from distutils.core import setup\n' )
 	f.write( 'setup(\n' )
 	for key, value in setup.items():
