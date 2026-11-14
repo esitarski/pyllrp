@@ -67,34 +67,34 @@ class _FieldDef:
 		ftype = self.TypeCode
 		attr = self.Name
 		if 'intbe' in ftype or ftype == 'bool' or ftype.startswith('bits'):
-			setattr( obj, attr, s.read(ftype) )
+			setattr( obj, attr, s.read_value(ftype) )
 		elif ftype == 'string':
-			length = s.read( 'uintbe:16' )
+			length = s.read_value( 'uintbe:16' )
 			eftype = f'bytes:{length}'
-			st = s.read( eftype )
+			st = s.read_value( eftype )
 			setattr( obj, attr, st.decode().rstrip('\x00') )		# Decode utf-8
 		elif ftype.startswith('array'):
-			length = s.read( 'uintbe:16' )
+			length = s.read_value( 'uintbe:16' )
 			eftype = 'uintbe:{}'.format(ftype.split(':')[1])
-			arr = [s.read(eftype) for i in range(length)]
+			arr = [s.read_value(eftype) for i in range(length)]
 			setattr( obj, attr, arr )
 		elif ftype == 'bitarray':
-			length = s.read( 'uintbe:16' )
+			length = s.read_value( 'uintbe:16' )
 			eftype = f'bits:{length}'
-			bstr = s.read( eftype )
+			bstr = s.read_value( eftype )
 			setattr( obj, attr, bstr.tobytes() )
 		elif ftype.startswith('skip'):
 			skip = int(ftype.split(':',1)[1])
-			s.read( f'int:{skip}' )
+			s.read_value( f'int:{skip}' )
 		elif ftype == 'bytesToEnd':
 			assert bytesRemaining is not None, 'bytesToEnd type requires bytesRemaining to be set'
-			by = s.read( f'bytes:{bytesRemaining}' )		# Read as bytes.
-			setattr( obj, attr, bitstring.BitStream(bytes=by) )		# Set attr to a bitstream.
+			by = s.read_value( f'bytes:{bytesRemaining}' )				# Read as bytes.
+			setattr( obj, attr, bitstring.BitArray.from_bytes(by) )		# Set attr to a BitArray.
 		else:
 			raise TypeError( f'Unknown read FieldDef type: "{ftype}"' )
 
 	def write( self, s, obj ) -> None:
-		''' Write the field from the obj to the bitstring. '''
+		''' Write the field from the obj to the BitArray. '''
 		ftype = self.TypeCode
 		attr = self.Name
 		try:
@@ -108,7 +108,7 @@ class _FieldDef:
 			elif ftype == 'string':
 				by = getattr(obj, attr, '').encode()	# Encode utf-8.
 				s.append( bitstring.Bits(uintbe=len(by), length=16) )
-				s.append( bitstring.Bits(bytes=by) )
+				s.append( bitstring.Bits.from_bytes(by) )
 			elif ftype.startswith('array'):
 				arr = getattr( obj, attr, [] )
 				length = int(ftype.split(':')[1])
@@ -125,7 +125,7 @@ class _FieldDef:
 						v = '0' + v
 					by = codecs.encode( v, 'hex_codec' )	# Encode to bytes as hex.
 				s.append( bitstring.Bits(uintbe=len(by)*8, length=16) )
-				s.append( bitstring.Bits(bytes=by) )
+				s.append( bitstring.Bits.from_bytes(by) )
 			elif ftype.startswith('skip'):
 				skip = int(ftype.split(':',1)[1])
 				assert skip > 0
@@ -490,11 +490,11 @@ class _MessagePackUnpack:
 		m = _messageClassFromTypeCode[self.TypeCode]( MessageID = -1 )	# Use a dummy MessageID - get the real one from the bitstream later.
 	
 		beginPos = s.pos
-		TypeCode = s.read('uintbe:16')
+		TypeCode = s.read_value('uintbe:16')
 		TypeCode &= ((1<<10)-1)
 		assert m.TypeCode == TypeCode
-		m._Length = s.read('uintbe:32')
-		m._MessageID = s.read('uintbe:32')
+		m._Length = s.read_value('uintbe:32')
+		m._MessageID = s.read_value('uintbe:32')
 		
 		# Read the fields of this message.
 		for f in self.FieldDefs:
@@ -535,8 +535,7 @@ class _MessagePackUnpack:
 		# Fix the message length field.
 		endPos = len(s)
 		m._Length = (endPos - beginPos) >> 3
-		s.overwrite( bitstring.pack('uintbe:32', m._Length), beginPos + 16 )
-		s.pos = endPos
+		s.overwrite( beginPos + 16, bitstring.pack('uintbe:32', m._Length) )
 		return s
 
 #---------------------------------------------------------------------------------------------------------
@@ -584,17 +583,17 @@ class _ParameterPackUnpack:
 		p = _parameterClassFromTypeCode[self.TypeCode]()
 		
 		beginPos = s.pos
-		TypeCode = s.peek( 'uintbe:8' )
+		TypeCode = s.peek_value( 'uintbe:8' )
 		if TypeCode & (1<<7):
 			TypeCode &= ((1<<7) - 1)
 			p._Length = self.Length
 			assert p.Encoding == self.TV
 			s.read( 'uintbe:8' )
 		else:
-			TypeCode = s.read('uintbe:16')
+			TypeCode = s.read_value('uintbe:16')
 			TypeCode &= ((1<<10)-1)
 			assert p.Encoding == self.TLV
-			p._Length = s.read('uintbe:16')
+			p._Length = s.read_value('uintbe:16')
 		
 		assert TypeCode == self.TypeCode
 		
@@ -645,8 +644,7 @@ class _ParameterPackUnpack:
 				
 			endPos = len(s)
 			p._Length = (endPos - beginPos) >> 3
-			s.overwrite( bitstring.pack('uintbe:16', p._Length), beginPos + 16 )
-			s.pos = endPos
+			s.overwrite( beginPos + 16, bitstring.pack('uintbe:16', p._Length) )
 		else:
 			p._Length = self.Length
 		return s
@@ -755,7 +753,7 @@ def UnpackMessageFromSocket( sock ):
 		zeroLenChunkCount = 0
 	
 	# Convert to a BitStream to get the message TypeCode and Length.
-	s = bitstring.Reader(bitstring.Bits(bytes=b''.join(chunks)))
+	s = bitstring.Reader(bitstring.Bits.from_bytes(b''.join(chunks)))
 	TypeCode = s.read('uintbe:16')
 	TypeCode &= ((1<<10)-1)
 	Length = s.read('uintbe:32')
@@ -776,28 +774,27 @@ def UnpackMessageFromSocket( sock ):
 		zeroLenChunkCount = 0
 	
 	# Convert the full message to a BitStream and parse it.
-	s = bitstring.Reader(bitstring.Bits(bytes=b''.join(chunks)))
+	s = bitstring.Reader(bitstring.Bits.frombytes(b''.join(chunks)))
 	return _MessagePackUnpackLookup[TypeCode].unpack( s )
 
 def UnpackMessage( s ):
-	''' Unpack a message from a bitstream. '''
-	s.pos = 0
-	TypeCode = s.peek('uintbe:16')
+	''' Unpack a message from a bitstream.Reader. '''
+	TypeCode = s.peek_value('uintbe:16')
 	TypeCode &= ((1<<10)-1)
 	return _MessagePackUnpackLookup[TypeCode].unpack( s )
 	
 def PackMessage( m ):
-	''' Pack message into a bitstream. '''
+	''' Pack message into a bitstream.BitArray. '''
 	assert m.TypeCode in _messageClassFromTypeCode
-	return m.pack( bitstring.BitStream() )
+	return m.pack( bitstring.BitArray() )
 	
 def UnpackParameter( s ):
-	''' Unpack a parameter from a bitstream. '''
-	TypeCode = s.peek( 'uintbe:8' )
+	''' Unpack a parameter from a BitArray. '''
+	TypeCode = s.peek_value( 'uintbe:8' )
 	if TypeCode & (1<<7):
-		TypeCode &= ((1<<7) - 1)			# TV Encoding
+		TypeCode &= ((1<<7) - 1)					# TV Encoding
 	else:
-		TypeCode = s.peek('uintbe:16')		# TLV Encoding
+		TypeCode = s.peek_value('uintbe:16')		# TLV Encoding
 		TypeCode &= ((1<<10)-1)
 	return _ParameterPackUnpackLookup[TypeCode].unpack( s )
 	
@@ -933,10 +930,10 @@ if __name__ == '__main__':
 	c = IMPINJ_ENABLE_EXTENSIONS_Message()
 	print( c )
 	
-	s = c.pack( bitstring.BitStream() )
+	s = c.pack( bitstring.BitArray() )
 	print( s )
 	
-	m = UnpackMessage( s )
+	m = UnpackMessage( bitstring.Reader(s) )
 	print( m )
 	
 	#-----------------------------
@@ -953,40 +950,40 @@ if __name__ == '__main__':
 	print( rospecEnableMessage )
 	rospecEnableMessage._validate()
 	
-	s = rospecMessage.pack( bitstring.BitStream() )
+	s = rospecMessage.pack( bitstring.BitArray() )
 	print( s )
 	
-	m = UnpackMessage( s )
+	m = UnpackMessage( bitstring.Reader(s) )
 	print( m )
 	
 	bb=s.tobytes()
-	t = bitstring.Reader(bitstring.Bits(bytes=bb))
+	t = bitstring.Reader(bitstring.Bits.from_bytes(bb))
 	n = UnpackMessage( t )
 	print( n )
 	
-	s = rospecEnableMessage.pack( bitstring.BitStream() )
+	s = rospecEnableMessage.pack( bitstring.BitArray() )
 	print( s )
 	
-	m = UnpackMessage( s )
+	m = UnpackMessage( bitstring.Reader(s) )
 	print( m )
 	
 	bb=s.tobytes()
-	t = bitstring.Reader(bitstring.Bits(bytes=bb))
+	t = bitstring.Reader(bitstring.Bits.from_bytes(bb))
 	n = UnpackMessage( t )
 	print( n )
 	
 	customMessage = IMPINJ_ENABLE_EXTENSIONS_Message( MessageID = 1 )
 	print( customMessage )
 	
-	s = customMessage.pack( bitstring.BitStream() )
-	m = UnpackMessage( s )
+	s = customMessage.pack( bitstring.BitArray() )
+	m = UnpackMessage( bitstring.Reader(s) )
 	print( m )
 	
 	customMessage = IMPINJ_ADD_ENCODE_DATA_Message( MessageID = 1, EncodeDataCacheID = 32 )
 	print( customMessage )
 	
-	s = customMessage.pack( bitstring.BitStream() )
-	m = UnpackMessage( s )
+	s = customMessage.pack( bitstring.BitArray() )
+	m = UnpackMessage( bitstring.Reader(s) )
 	print( m )
 	
 	message = READER_EVENT_NOTIFICATION_Message( MessageID = 1234, Parameters = [
@@ -1011,8 +1008,8 @@ if __name__ == '__main__':
 	print( '*'*40 )
 	print( customMessage )
 	
-	s = customMessage.pack( bitstring.BitStream() )
-	m = UnpackMessage( s )
+	s = customMessage.pack( bitstring.BitArray() )
+	m = UnpackMessage( bitstring.Reader(s) )
 	print( m )
 	
 	#---------------------------------------------------------------------------
