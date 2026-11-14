@@ -1,5 +1,4 @@
 import io
-import codecs
 import itertools
 import bitstring
 try:
@@ -66,8 +65,10 @@ class _FieldDef:
 	def read( self, s, obj, bytesRemaining:int|None = None ) -> None:
 		ftype = self.TypeCode
 		attr = self.Name
-		if 'intbe' in ftype or ftype == 'bool' or ftype.startswith('bits'):
+		if 'intbe' in ftype or ftype == 'bool':
 			setattr( obj, attr, s.read_value(ftype) )
+		elif ftype.startswith('bits'):
+			setattr( obj, attr, s.read_value('uint:' + ftype.split(':')[1]) )	# Read as an unsigned int, not a Bits object.
 		elif ftype == 'string':
 			length = s.read_value( 'uintbe:16' )
 			eftype = f'bytes:{length}'
@@ -101,10 +102,8 @@ class _FieldDef:
 			if 'intbe' in ftype or ftype == 'bool':
 				s.append( bitstring.pack(ftype, getattr(obj, attr)) )
 			elif ftype.startswith('bits'):
-				v = getattr( obj, attr )
 				length = int(ftype.split(':')[1])
-				for i in range(length-1, -1, -1):
-					s.append( bitstring.pack('bool', bool(v & (1<<i))) )
+				s.append( bitstring.pack(f'uint:{length}', getattr(obj, attr)) )
 			elif ftype == 'string':
 				by = getattr(obj, attr, '').encode()	# Encode utf-8.
 				s.append( bitstring.Bits(uintbe=len(by), length=16) )
@@ -119,11 +118,11 @@ class _FieldDef:
 				by = getattr(obj, attr, b'')	# Expects bytes.
 				if isinstance(by, int):
 					# Convert int to bytes.
-					assert by > 0, 'bitarray cannot be initialized with negative integer'
+					assert by >= 0, 'bitarray cannot be initialized with negative integer'
 					v = f'{by:x}'			# Convert to hex.
 					if len(v) & 1:			# Ensure hex number has an even number of hex chars.
 						v = '0' + v
-					by = codecs.encode( v, 'hex_codec' )	# Encode to bytes as hex.
+					by = bytes.fromhex( v )	# Convert hex string to bytes.
 				s.append( bitstring.Bits(uintbe=len(by)*8, length=16) )
 				s.append( bitstring.Bits.from_bytes(by) )
 			elif ftype.startswith('skip'):
@@ -134,7 +133,7 @@ class _FieldDef:
 				s.append( getattr(obj, attr) )		# assume the field is a bitstream
 			else:
 				raise TypeError( f'Unknown write FieldDef type: "{ftype}"' )
-		except bitstring.CreationError as e:
+		except ValueError:
 			print( f'write: {ftype} {attr} {getattr(obj, attr)}' )
 			raise
 
@@ -154,7 +153,7 @@ class _FieldDef:
 			setattr( obj, attr, bytes() )
 		elif ftype == 'bytesToEnd':
 			assert False, 'Cannot initalize bytesToEnd'
-			setattr( obj, attr, bitstring.BitStream() )
+			setattr( obj, attr, bitstring.BitArray() )
 		elif not ftype.startswith('skip'):
 			raise TypeError( f'Unknown init FieldDef type: "{ftype}"' )
 			
@@ -343,7 +342,7 @@ def _validate( self, path: None | list[str] = None ):
 		elif ftype == 'bitarray':
 			assert isinstance( value, bytes ), f'{path_str}: field "{name}" must be "bytes" type, not "{value.__class__.__name__}"'
 		elif ftype == 'bytesToEnd':
-			assert isinstance( value, bitstring.BitStream ), f'{path_str}: bytesToEnd field "{name}" must be "bitstring.BitStream" type, not "{value.__class__.__name__}"'
+			assert isinstance( value, bitstring.Bits ), f'{path_str}: bytesToEnd field "{name}" must be "bitstring.Bits" type, not "{value.__class__.__name__}"'
 		else:
 			assert False, f'{path_str}: Unknown field ftype: "{ftype}"'
 			
@@ -393,7 +392,7 @@ def _setMessageID( self, MessageID ):
 	self._MessageID = MessageID
 
 def _sendToSocket( self, socket ):
-	socket.sendall( self.pack(bitstring.BitStream()).tobytes() )
+	socket.sendall( self.pack(bitstring.BitArray()).tobytes() )
 
 def _getLLRPStatusSuccess( self ):
 	for p in self.Parameters:
@@ -513,7 +512,7 @@ class _MessagePackUnpack:
 					f.read( s, m, m._Length - ((s.pos - beginPos) >> 3) )
 			else:
 				# Unrecognized custom message.  Skip the remaining bytes and return a plain CustomMessage object.
-				s.read( 'bytes:{}'.format(m._Length - ((s.pos - beginPos) >> 3) ) )
+				s.read_value( 'bytes:{}'.format(m._Length - ((s.pos - beginPos) >> 3) ) )
 			
 		while ((s.pos - beginPos) >> 3) < m._Length:
 			m.Parameters.append( UnpackParameter(s) )
@@ -524,15 +523,17 @@ class _MessagePackUnpack:
 		m._validate()
 		
 		beginPos = len(s)
-		# Add Version 1 code to the message type - the (1<<10).
+		
+		# Write the message header: (16+32+32=80)/8 == 10 bytes.
+		# Add Version 1 code to the message type (the 1<<10).
 		s.append( bitstring.pack('uintbe:16, uintbe:32, uintbe:32', (1<<10) | m.TypeCode, 0, m._MessageID) )
 		
-		for f in m.FieldDefs:
+		for f in m.FieldDefs:		# our fields.
 			f.write( s, m )
-		for p in m.Parameters:
+		for p in m.Parameters:		# our parameters.
 			p.pack( s )
 
-		# Fix the message length field.
+		# Update the message length field.
 		endPos = len(s)
 		m._Length = (endPos - beginPos) >> 3
 		s.overwrite( beginPos + 16, bitstring.pack('uintbe:32', m._Length) )
@@ -588,7 +589,7 @@ class _ParameterPackUnpack:
 			TypeCode &= ((1<<7) - 1)
 			p._Length = self.Length
 			assert p.Encoding == self.TV
-			s.read( 'uintbe:8' )
+			s.read_value( 'uintbe:8' )
 		else:
 			TypeCode = s.read_value('uintbe:16')
 			TypeCode &= ((1<<10)-1)
@@ -616,7 +617,7 @@ class _ParameterPackUnpack:
 					f.read( s, p )
 			else:
 				# Unrecognized custom parameter.  Skip the remaining bytes and return a plain CustomParameter object.
-				s.read( 'bytes:{}'.format(p._Length - ((s.pos - beginPos) >> 3) ) )
+				s.read_value( 'bytes:{}'.format(p._Length - ((s.pos - beginPos) >> 3) ) )
 			
 		if p.Encoding == self.TLV:
 			while ((s.pos - beginPos) >> 3) < p._Length:
@@ -752,15 +753,15 @@ def UnpackMessageFromSocket( sock ):
 		messageLen += len(chunk)
 		zeroLenChunkCount = 0
 	
-	# Convert to a BitStream to get the message TypeCode and Length.
-	s = bitstring.Reader(bitstring.Bits.from_bytes(b''.join(chunks)))
-	TypeCode = s.read('uintbe:16')
+	# Convert to a bitstream.Reader to get the message TypeCode and Length.
+	s = bitstring.Reader(bitstring.BitArray.from_bytes(b''.join(chunks)))
+	TypeCode = s.read_value('uintbe:16')
 	TypeCode &= ((1<<10)-1)
-	Length = s.read('uintbe:32')
+	Length = s.read_value('uintbe:32')
 	
 	# print( f'UnpackMessageFromSocket: TypeCode={TypeCode} Length={Length} {_messageClassFromTypeCode[TypeCode].__name__}' )
 	
-	# Read the remaining message based on the Length.
+	# Read the remaining message based on the header Length.
 	zeroLenChunkCount = 0
 	while messageLen < Length:
 		chunk = sock.recv( Length - messageLen )
@@ -773,9 +774,47 @@ def UnpackMessageFromSocket( sock ):
 		messageLen += len(chunk)
 		zeroLenChunkCount = 0
 	
-	# Convert the full message to a BitStream and parse it.
-	s = bitstring.Reader(bitstring.Bits.frombytes(b''.join(chunks)))
+	# Convert the full message bytes to a bitstring.Reader and parse the message from it.
+	s = bitstring.Reader(bitstring.Bits.from_bytes(b''.join(chunks)))
 	return _MessagePackUnpackLookup[TypeCode].unpack( s )
+
+class MessageReceiver:
+	''' Reads LLRP messages from a socket, keeping partial data across socket timeouts.
+
+		UnpackMessageFromSocket() discards any bytes already read if the socket times out mid-message,
+		which leaves the stream out of sync.  This class keeps a persistent buffer instead, so a timeout
+		only means "no complete message yet".  Use one MessageReceiver per socket for ALL reads.
+	'''
+	HeaderBytes = 10	# TypeCode (2) + Length (4) + MessageID (4).
+
+	def __init__( self, sock ):
+		self.sock = sock
+		self.buf = bytearray()
+
+	def receive( self ):
+		''' Return the next complete message.  Raises socket.timeout if none is complete yet (buffered data is kept). '''
+		while True:
+			if len(self.buf) >= 6:
+				length = int.from_bytes( self.buf[2:6], 'big' )
+				if length < self.HeaderBytes:
+					raise RuntimeError( f'LLRP stream corrupt: message length {length}' )
+				if len(self.buf) >= length:
+					data = bytes( self.buf[:length] )
+					del self.buf[:length]
+					return UnpackMessage( bitstring.Reader(bitstring.Bits.from_bytes(data)) )
+			chunk = self.sock.recv( 65536 )		# May raise socket.timeout - self.buf is preserved.
+			if not chunk:
+				raise RuntimeError( 'LLRP socket connection broken' )
+			self.buf += chunk
+
+	def waitForMessage( self, MessageID, nonMatchingMessageHandler = None ):
+		''' Wait for a message matching the MessageID.  Call the handler on any non-matching message. '''
+		while True:
+			response = self.receive()
+			if response.MessageID == MessageID:
+				return response
+			if nonMatchingMessageHandler:
+				nonMatchingMessageHandler( response )
 
 def UnpackMessage( s ):
 	''' Unpack a message from a bitstream.Reader. '''
@@ -1021,7 +1060,7 @@ if __name__ == '__main__':
 				RFTransmitter_Parameter( 
 					TransmitPower = 8192,
 					HopTableID = 1,
-					ChannelIndex = ci,			# should assert if ChannelIndex = 0.
+					ChannelIndex = ci,			# expect an assert if ChannelIndex = 0.
 				),
 				C1G2InventoryCommand_Parameter( Parameters = [
 					C1G2SingulationControl_Parameter(

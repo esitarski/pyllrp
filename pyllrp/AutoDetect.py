@@ -97,4 +97,5 @@ def AutoDetect( impinjPort=5084 ):
 	return findImpinjHost(impinjPort), GetDefaultHost()
 		
 if __name__ == '__main__':
-	print( AutoDetect() )
+	print( f'findImpinjHost: {findImpinjHost()}' )
+	print( f'AutoDetect: {AutoDetect()}' )

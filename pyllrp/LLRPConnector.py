@@ -26,6 +26,7 @@ class LLRPConnector:
 		self.host = None
 		self.port = None
 		self.readerSocket = None
+		self.receiver = None		# Buffered reader shared by connect, transact and listen.
 		self.thread = None
 		self.shutdownQ = None		# Used to shutdown the thread.
 		self.keepGoing = False
@@ -39,12 +40,13 @@ class LLRPConnector:
 		# Set a timeout for the socket.  This is also the maximum time it will take to shut down the listener.
 		self.readerSocket.settimeout( self.TimeoutSecs )
 		self.readerSocket.connect( (host, port) )
+		self.receiver = MessageReceiver( self.readerSocket )
 		
 		self.host = host
 		self.port = port
 		
 		# Expecting READER_EVENT_NOTIFICATION message.
-		response = UnpackMessageFromSocket( self.readerSocket )
+		response = self.receiver.receive()
 		tNow = datetime.datetime.now()	# Get the time here to minimize latency.
 		
 		# Check if the connection succeeded.
@@ -92,6 +94,7 @@ class LLRPConnector:
 		
 		self.readerSocket.close()
 		self.readerSocket = None
+		self.receiver = None
 		return response
 		
 	def addHandler( self, messageClass, handlerFunc ):
@@ -123,7 +126,7 @@ class LLRPConnector:
 		''' Send a message to the reader and wait for the response. '''
 		assert not self.isListening(), 'Cannot perform transact() while listen thread is active.  Stop it first with stopListener().'
 		message.send( self.readerSocket )
-		response = WaitForMessage( message.MessageID, self.readerSocket, self.callHandler )
+		response = self.receiver.waitForMessage( message.MessageID, self.callHandler )
 		return response
 		
 	def checkKeepGoing( self ):
@@ -151,9 +154,9 @@ class LLRPConnector:
 		# Recommended usage is to use startListener and stopListener.
 		while self.checkKeepGoing():
 			try:
-				response = UnpackMessageFromSocket( self.readerSocket )
+				response = self.receiver.receive()
 			except socket.timeout:
-				continue
+				continue		# Safe: any partial message stays buffered in self.receiver.
 			self.callHandler( response )
 				
 	def startListener( self ):
